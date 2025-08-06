@@ -132,7 +132,7 @@ func (c *Client) Get(url string) (int, []byte) {
 }
 
 func (c *Client) Post(url string, payload []byte) error {
-	resp, err := c.http.Post(url, "application/json", bytes.NewBuffer(payload))
+	resp, err := c.http.Post(url, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("HTTP POST request failed: %v", err)
 	}

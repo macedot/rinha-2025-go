@@ -7,6 +7,8 @@ import (
 	"os"
 	"rinha-2025/utils"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Service struct {
@@ -24,11 +26,12 @@ type Service struct {
 
 type Config struct {
 	DebugMode              bool
+	RedisURL               string
+	Instances              []Service
 	Services               []Service
 	ServiceRefreshInterval time.Duration
-	Instances              []Service
 	ServerURL              string
-	RedisURL               string
+	ServerSocket           string
 }
 
 type ConfigCache struct {
@@ -85,6 +88,7 @@ func (c *Config) UpdateInstances() {
 }
 
 func (c *Config) Init() {
+	godotenv.Load()
 	c.DebugMode = utils.GetEnvBool("API_DEBUG_MODE", false)
 	var services []Service
 	envServices := os.Getenv("SERVICES")
@@ -126,5 +130,6 @@ func (c *Config) Init() {
 	}
 	c.ServiceRefreshInterval = utils.GetEnvDuration("SERVICE_REFRESH_INTERVAL", "5s")
 	c.ServerURL = utils.GetEnv("SERVER_URL", ":5000")
+	c.ServerSocket = utils.GetEnv("SOCKET_PATH", "")
 	c.RedisURL = utils.GetEnv("REDIS_URL", "redis:6379")
 }
