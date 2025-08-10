@@ -12,8 +12,7 @@ type Queue struct {
 }
 
 func NewQueue() *Queue {
-	q := &Queue{}
-	q.items = make([]models.Payment, 0, 20*1024)
+	q := &Queue{items: make([]models.Payment, 0, 20*1024)}
 	q.cond = sync.NewCond(&q.lock)
 	return q
 }
