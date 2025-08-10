@@ -7,6 +7,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/ohler55/ojg v1.26.8
 	github.com/redis/go-redis/v9 v9.12.0
+	github.com/valyala/fasthttp v1.64.0
 )
 
 require (
@@ -20,6 +21,5 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.64.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 )

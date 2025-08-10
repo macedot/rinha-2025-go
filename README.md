@@ -26,22 +26,35 @@ Curtiu? Dê uma olhada no [código fonte](https://github.com/macedot/rinha-2025)
 
 ## Execução local
 
+**AMD Ryzen 9 5950X**
+
 ```json
 {
-  "participante": "anonymous",
   "total_liquido": 383385.838,
   "total_bruto": 333524,
   "total_taxas": 16676.2,
-  "descricao": "'total_liquido' é sua pontuação final. Equivale ao seu lucro. Fórmula: total_liquido + (total_liquido * p99.bonus) - (total_liquido * multa.porcentagem)",
   "p99": {
     "valor": "0.53ms",
     "bonus": "21%",
     "max_requests": "550",
-    "descricao": "Fórmula para o bônus: max((11 - p99.valor) * 0.02, 0)"
   }
 }
 ```
 
+**Intel(R) Core(TM) i7-2635QM CPU @ 2.00GHz**
+
+```json
+{
+  "total_liquido": 363505.34,
+  "total_bruto": 332728,
+  "total_taxas": 16636.4,
+  "p99": {
+    "valor": "3.26ms",
+    "bonus": "15%",
+    "max_requests": "550",
+  }
+}
+```
 ## ✨ Thanks
 
 Aprendi muito com os projetos do [Alan Silva](https://github.com/alan-venv/rinha-de-backend-2025), [Anderson Gomes](https://github.com/andersongomes001/rinha-2025/) e [Josiney Jr.](https://github.com/JosineyJr/rdb25_02). Deixe uma ⭐ pra eles!

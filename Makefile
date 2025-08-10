@@ -10,6 +10,10 @@ dev:
 	docker compose build && \
 	docker compose up
 
+run:
+	docker compose down && \
+	docker compose up
+
 build:
 	@echo "🐳 Build da imagem Docker..."
 	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .

@@ -1,131 +1,68 @@
 package services
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"io"
 	"log"
-	"net"
 	"net/http"
-	"sync"
 	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
-// DNSCache holds cached DNS resolutions
-type DNSCache struct {
-	cache map[string][]string
-	mutex sync.RWMutex
-	ttl   time.Duration
-}
-
 type Client struct {
-	dnsCache *DNSCache
-	http     *http.Client
+	client *fasthttp.Client
 }
 
 var client Client
+
+var headerContentTypeJSON = []byte("application/json")
 
 func HttpClientInstance() *Client {
 	return &client
 }
 
 func (c *Client) Init() {
-	c.dnsCache = &DNSCache{
-		cache: make(map[string][]string),
-		mutex: sync.RWMutex{},
-		ttl:   5 * time.Minute,
-	}
-	c.http = &http.Client{
-		Transport: CustomTransport(client.dnsCache),
-		Timeout:   30 * time.Second,
-	}
-}
-
-// Resolve looks up IP addresses for a hostname, using cache if available
-func (dc *DNSCache) Resolve(host string) ([]string, error) {
-	dc.mutex.RLock()
-	if addrs, found := dc.cache[host]; found {
-		dc.mutex.RUnlock()
-		return addrs, nil
-	}
-	dc.mutex.RUnlock()
-
-	// Perform DNS lookup
-	addrs, err := net.LookupHost(host)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache the results
-	dc.mutex.Lock()
-	dc.cache[host] = addrs
-	dc.mutex.Unlock()
-
-	// Schedule cache eviction
-	go func() {
-		<-time.After(dc.ttl)
-		dc.mutex.Lock()
-		delete(dc.cache, host)
-		dc.mutex.Unlock()
-	}()
-
-	return addrs, nil
-}
-
-// CustomTransport creates an HTTP transport with custom dialer
-func CustomTransport(dc *DNSCache) *http.Transport {
-	return &http.Transport{
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			host, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, err
-			}
-
-			// Resolve using DNS cache
-			addrs, err := dc.Resolve(host)
-			if err != nil {
-				return nil, err
-			}
-
-			// Try connecting to each resolved IP
-			dialer := &net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}
-			for _, ip := range addrs {
-				conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, port))
-				if err == nil {
-					return conn, nil
-				}
-			}
-			return nil, fmt.Errorf("failed to connect to %s", addr)
-		},
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
+	c.client = &fasthttp.Client{
+		ReadTimeout:                   5 * time.Second,
+		WriteTimeout:                  5 * time.Second,
+		MaxIdleConnDuration:           1 * time.Hour,
+		NoDefaultUserAgentHeader:      true, // Don't send: User-Agent: fasthttp
+		DisableHeaderNamesNormalizing: true, // If you set the case on your headers correctly you can enable this
+		DisablePathNormalizing:        true,
+		Dial: (&fasthttp.TCPDialer{
+			Concurrency:      4096,
+			DNSCacheDuration: time.Hour,
+		}).Dial,
 	}
 }
 
 func (c *Client) Get(url string) (int, []byte) {
-	resp, err := c.http.Get(url)
+	statusCode, body, err := c.client.Get([]byte{}, url)
 	if err != nil {
 		log.Fatalf("HTTP GET request failed: %v", err)
 	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err == nil {
-		return resp.StatusCode, body
+	if statusCode != fasthttp.StatusOK {
+		log.Fatalf("HTTP GET request failed: %v", err)
 	}
-	return resp.StatusCode, nil
+	return statusCode, body
 }
 
 func (c *Client) Post(url string, payload []byte) error {
-	resp, err := c.http.Post(url, "application/json", bytes.NewReader(payload))
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(url)
+	req.Header.SetMethod(fasthttp.MethodPost)
+	req.Header.SetContentTypeBytes(headerContentTypeJSON)
+	req.SetBodyRaw(payload)
+	resp := fasthttp.AcquireResponse()
+	err := c.client.Do(req, resp)
+	fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
 	if err != nil {
-		return fmt.Errorf("HTTP POST request failed: %v", err)
+		return err
 	}
-	defer resp.Body.Close()
+	statusCode := resp.StatusCode()
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("invalid HTTP response code: %d", statusCode)
+	}
 	return nil
 }

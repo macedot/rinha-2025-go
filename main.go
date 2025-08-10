@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 	"math/rand"
+	"net"
+	"os"
+	"path/filepath"
 	"rinha-2025/config"
 	"rinha-2025/database"
 	"rinha-2025/models"
@@ -15,6 +18,24 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 )
+
+func NewListenUnix(socketPath string) net.Listener {
+	socketDir := filepath.Dir(socketPath)
+	if err := os.MkdirAll(socketDir, 0777); err != nil {
+		log.Fatalf("Failed to create socket directory: %v", err)
+	}
+	if err := os.RemoveAll(socketPath); err != nil {
+		log.Fatalf("Failed to remove existing socket: %v", err)
+	}
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		log.Fatalf("Failed to listen on Unix socket: %v", err)
+	}
+	if err := os.Chmod(socketPath, 0666); err != nil {
+		log.Fatalf("Failed to set socket permissions: %v", err)
+	}
+	return listener
+}
 
 func main() {
 	runtime.GOMAXPROCS(1)
@@ -52,7 +73,6 @@ func main() {
 		for {
 			payment := queue.Dequeue()
 			if err := services.ProcessPayment(&payment); err != nil {
-				log.Println("ProcessPayment:", err.Error())
 				queue.Enqueue(&payment)
 			}
 		}
@@ -92,6 +112,12 @@ func main() {
 		runtime.GC()
 		return c.JSON(fiber.Map{})
 	})
+
+	if cfg.ServerSocket != "" {
+		log.Printf("Listening on %s", cfg.ServerSocket)
+		listener := NewListenUnix(cfg.ServerSocket)
+		log.Fatal(app.Listener(listener))
+	}
 
 	log.Fatal(app.Listen(cfg.ServerURL))
 }
