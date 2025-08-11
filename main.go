@@ -48,12 +48,10 @@ func main() {
 		}
 	}()
 
-	log.Println("Server type:", cfg.ServerType)
+	// log.Println("Server type:", cfg.ServerType)
 	// switch cfg.ServerType {
-	// case "echo":
-	// 	log.Fatal(server.RunEcho(cfg, queue))
-	// case "silverlining":
-	// 	log.Fatal(server.RunSilverlining(cfg, queue))
+	// case "gear":
+	// 	log.Fatal(server.RunGear(cfg, queue))
 	// }
 
 	log.Fatal(server.RunEcho(cfg, queue))

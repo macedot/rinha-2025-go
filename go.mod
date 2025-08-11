@@ -5,7 +5,7 @@ go 1.24.5
 require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/ohler55/ojg v1.26.8
-	github.com/redis/go-redis/v9 v9.12.0
+	github.com/redis/go-redis/v9 v9.12.1
 	github.com/valyala/fasthttp v1.64.0
 )
 
