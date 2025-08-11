@@ -50,15 +50,13 @@ func main() {
 
 	log.Println("Server type:", cfg.ServerType)
 	switch cfg.ServerType {
+	case "gear":
+		log.Fatal(server.RunGear(cfg, queue))
 	case "fasthttp":
 		log.Fatal(server.RunFastHTTP(cfg, queue))
-	case "gin":
-		log.Fatal(server.RunGin(cfg, queue))
 	case "silverlining":
 		log.Fatal(server.RunSilverlining(cfg, queue))
-	case "gearbox":
-		log.Fatal(server.RunGearbox(cfg, queue))
 	}
 
-	log.Fatal(server.RunFiber(cfg, queue))
+	log.Fatal(server.RunEcho(cfg, queue))
 }

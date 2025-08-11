@@ -6,7 +6,7 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v3
 RUN go build -ldflags="-s -w" -o app .
 
 # Stage 2: Create a minimal runtime image
