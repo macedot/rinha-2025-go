@@ -10,12 +10,12 @@ type Payment struct {
 	Timestamp time.Time `json:"requestedAt"`
 }
 
-// func (p *Payment) Validate() error {
-// 	// if p.PaymentID == "" {
-// 	// 	return errors.New("paymentId is required")
-// 	// }
-// 	// if p.Amount < 0 {
-// 	// 	return errors.New("amount must be greater than zero")
-// 	// }
-// 	return nil
-// }
+func (p *Payment) Validate() error {
+	// if p.PaymentID == "" {
+	// 	return errors.New("paymentId is required")
+	// }
+	// if p.Amount < 0 {
+	// 	return errors.New("amount must be greater than zero")
+	// }
+	return nil
+}
