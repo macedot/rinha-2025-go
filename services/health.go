@@ -72,8 +72,7 @@ func RefreshServiceStatus(cfg *config.Config) {
 	currInstances := cfg.GetInstances() //GetInstancesCache()
 	currServices := cfg.GetServices()
 	updateServicesHealth(currServices)
-	cfg.UpdateServices(currServices)
-	cfg.UpdateInstances()
+	cfg.UpdateServices(currServices).UpdateInstances()
 	instances := cfg.GetInstances()
 	SetInstancesCache(instances)
 	if !reflect.DeepEqual(currInstances, instances) {

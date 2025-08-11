@@ -21,7 +21,7 @@ func HttpClientInstance() *Client {
 	return &client
 }
 
-func (c *Client) Init() {
+func (c *Client) Init() *Client {
 	c.client = &fasthttp.Client{
 		ReadTimeout:                   5 * time.Second,
 		WriteTimeout:                  5 * time.Second,
@@ -34,6 +34,7 @@ func (c *Client) Init() {
 			DNSCacheDuration: time.Hour,
 		}).Dial,
 	}
+	return c
 }
 
 func (c *Client) Get(url string) (int, []byte) {

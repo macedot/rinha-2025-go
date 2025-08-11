@@ -17,14 +17,9 @@ func main() {
 	debug.SetGCPercent(-1)
 	debug.SetMemoryLimit(90 * 1024 * 1024)
 
-	cfg := config.ConfigInstance()
-	cfg.Init()
-
-	client := services.HttpClientInstance()
-	client.Init()
-
-	redis := database.RedisInstance()
-	redis.Connect(cfg)
+	cfg := config.ConfigInstance().Init()
+	services.HttpClientInstance().Init()
+	database.RedisInstance().Connect(cfg)
 
 	go func() {
 		services.ResetHealthTimeout()
@@ -52,6 +47,17 @@ func main() {
 			}
 		}
 	}()
+
+	switch cfg.ServerType {
+	case "fasthttp":
+		log.Fatal(server.RunFastHTTP(cfg, queue))
+	case "gin":
+		log.Fatal(server.RunGin(cfg, queue))
+	case "silverlining":
+		log.Fatal(server.RunSilverlining(cfg, queue))
+	case "gearbox":
+		log.Fatal(server.RunGearbox(cfg, queue))
+	}
 
 	log.Fatal(server.RunFiber(cfg, queue))
 }

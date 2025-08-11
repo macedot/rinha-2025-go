@@ -24,10 +24,14 @@ func RedisInstance() *Redis {
 	return &redisInstance
 }
 
-func (r *Redis) Connect(cfg *config.Config) {
+func (r *Redis) Connect(cfg *config.Config) *Redis {
+	if r.rdb != nil {
+		r.Close()
+	}
 	r.rdb = redis.NewClient(&redis.Options{
 		Addr: cfg.RedisURL,
 	})
+	return r
 }
 
 func (r *Redis) Close() {

@@ -26,6 +26,7 @@ type Service struct {
 
 type Config struct {
 	DebugMode              bool
+	ServerType             string
 	ServerURL              string
 	ServerSocket           string
 	RedisURL               string
@@ -48,46 +49,48 @@ func (c *Config) GetServices() []Service {
 	return c.Services
 }
 
-func (c *Config) UpdateServices(services []Service) {
-	c.Services = services
-}
-
 func (c *Config) GetInstances() []Service {
 	return c.Instances
 }
 
+func (c *Config) UpdateServices(services []Service) *Config {
+	c.Services = services
+	return c
+}
+
 // https://github.com/JosineyJr/rdb25_02/blob/ae8517f398e4261890bbfe0bd57ca986642a34e5/internal/routing/router.go#L121
 // https://github.com/zanfranceschi/rinha-de-backend-2025/blob/main/participantes/andersongomes001/partial-results.json
-func (c *Config) UpdateInstances() {
+func (c *Config) UpdateInstances() *Config {
 	c.Instances = nil
 	if len(c.Services) == 1 {
 		if c.Services[0].Failing {
-			return
+			return c
 		}
 		c.Instances = append(c.Instances, c.Services[0])
-		return
+		return c
 	}
 	if c.Services[0].Failing && c.Services[1].Failing {
-		return
+		return c
 	}
 	if c.Services[0].Failing {
 		c.Instances = append(c.Instances, c.Services[1])
-		return
+		return c
 	}
 	if c.Services[1].Failing {
 		c.Instances = append(c.Instances, c.Services[0])
-		return
+		return c
 	}
 	dl := c.Services[0].MinResponseTime
 	fl := c.Services[1].MinResponseTime
 	if 0 < fl && fl <= 20 && (3*fl) < dl {
 		c.Instances = append(c.Instances, c.Services[1])
-		return
+		return c
 	}
 	c.Instances = append(c.Instances, c.Services[0])
+	return c
 }
 
-func (c *Config) Init() {
+func (c *Config) Init() *Config {
 	err := godotenv.Load()
 	if err == nil {
 		log.Println("Loaded ENV from .env file")
@@ -121,6 +124,7 @@ func (c *Config) Init() {
 		c.Services = append(c.Services, service)
 		log.Print("Service:", service)
 	}
+	c.ServerType = utils.GetEnv("SERVER_TYPE", "")
 	c.ServerSocket = utils.GetEnv("SERVER_SOCKET", "")
 	c.ServerURL = utils.GetEnv("SERVER_URL")
 	c.RedisURL = utils.GetEnv("REDIS_URL")
@@ -128,4 +132,5 @@ func (c *Config) Init() {
 	if c.DebugMode {
 		fmt.Printf("\n%+v\n\n", c)
 	}
+	return c
 }
