@@ -56,8 +56,6 @@ func main() {
 		log.Fatal(server.RunGin(cfg, queue))
 	case "silverlining":
 		log.Fatal(server.RunSilverlining(cfg, queue))
-	case "gearbox":
-		log.Fatal(server.RunGearbox(cfg, queue))
 	}
 
 	log.Fatal(server.RunFiber(cfg, queue))
