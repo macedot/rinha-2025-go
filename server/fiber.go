@@ -13,6 +13,8 @@ import (
 )
 
 func RunFiber(cfg *config.Config, queue *services.Queue) error {
+	log.Println("Starting Fiber server")
+
 	app := fiber.New(fiber.Config{
 		BodyLimit: 1024 * 1024,
 	})

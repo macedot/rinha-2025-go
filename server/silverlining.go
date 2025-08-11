@@ -20,6 +20,8 @@ func ServeListener(ln net.Listener, handler silverlining.Handler) error {
 }
 
 func RunSilverlining(cfg *config.Config, queue *services.Queue) error {
+	log.Println("Starting Silverlining server")
+
 	handler := func(c *silverlining.Context) {
 		switch string(c.Path()) {
 		case "/payments":

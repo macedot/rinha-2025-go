@@ -11,6 +11,8 @@ import (
 )
 
 func RunGin(cfg *config.Config, queue *services.Queue) error {
+	log.Println("Starting Gin server")
+
 	if !cfg.DebugMode {
 		gin.SetMode(gin.ReleaseMode)
 	}

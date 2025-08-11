@@ -11,6 +11,8 @@ import (
 )
 
 func RunFastHTTP(cfg *config.Config, queue *services.Queue) error {
+	log.Println("Starting FastHTTP server")
+
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
 		switch string(ctx.Path()) {
 		case "/payments":

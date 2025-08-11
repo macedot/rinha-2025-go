@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"rinha-2025/config"
 	"rinha-2025/models"
 	"rinha-2025/services"
@@ -9,6 +10,8 @@ import (
 )
 
 func RunGearbox(cfg *config.Config, queue *services.Queue) error {
+	log.Println("Starting Gearbox server")
+
 	gb := gearbox.New()
 
 	gb.Post("/payments", func(ctx gearbox.Context) {

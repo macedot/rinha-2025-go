@@ -3,6 +3,9 @@ name: rinha-2025
 x-api_template: &api_template
   #image: docker.io/macedot/rinha-2025:latest
   build: .
+  env_file:
+    - path: .env
+      required: true
   volumes:
     - sockets:/sockets:rw
   depends_on:
@@ -21,12 +24,14 @@ services:
     <<: *api_template
     hostname: api01
     environment:
+      - SERVER_TYPE=$SERVER_TYPE
       - SERVER_SOCKET=/sockets/go.sock.1
 
   api02:
     <<: *api_template
     hostname: api02
     environment:
+      - SERVER_TYPE=$SERVER_TYPE
       - SERVER_SOCKET=/sockets/go.sock.2
 
   gateway:
