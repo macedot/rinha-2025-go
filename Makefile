@@ -4,15 +4,6 @@ DOCKER_USER := macedot
 APP_NAME := rinha-2025
 IMAGE_NAME := $(DOCKER_USER)/$(APP_NAME)
 VERSION := $(shell git rev-parse --short HEAD)
-ENV_FILES := $(wildcard .env.*)
-
-all : $(ENV_FILES) dev run build push prod
-.PHONY : all
-
-$(ENV_FILES): FORCE
-	@echo "🚀 Running $@"
-	docker compose down && \
-	docker compose --env-file "$@" up
 
 docker:
 	docker compose down && \
@@ -31,8 +22,6 @@ push:
 	docker push $(IMAGE_NAME):$(VERSION)
 	docker push $(IMAGE_NAME):latest
 
-prod:
-	docker compose down && \
-	docker compose -f ./docker-compose-latest.yml up
-
 FORCE: ;
+
+.PHONY : docker run build push prod
