@@ -12,12 +12,10 @@ import (
 
 func RunFastHTTP(cfg *config.Config, queue *services.Queue) error {
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
-		path := ctx.Path()
-		switch string(path) {
+		switch string(ctx.Path()) {
 		case "/payments":
 			var payment models.Payment
-			body := ctx.Request.Body()
-			if err := oj.Unmarshal(body, &payment); err != nil {
+			if err := oj.Unmarshal(ctx.Request.Body(), &payment); err != nil {
 				ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 				return
 			}

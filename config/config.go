@@ -7,7 +7,6 @@ import (
 	"rinha-2025/utils"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/ohler55/ojg/oj"
 )
 
@@ -91,10 +90,6 @@ func (c *Config) UpdateInstances() *Config {
 }
 
 func (c *Config) Init() *Config {
-	err := godotenv.Load()
-	if err == nil {
-		log.Println("Loaded ENV from .env file")
-	}
 	c.DebugMode = utils.GetEnvBool("API_DEBUG_MODE", "false")
 	var services []Service
 	if envServices := os.Getenv("SERVICES"); envServices != "" {
@@ -103,14 +98,14 @@ func (c *Config) Init() *Config {
 		}
 	}
 	if len(services) < 1 {
-		log.Fatal("at least one services is required")
+		log.Fatal("Config: at least one services is required")
 	}
 	for _, service := range services {
 		if service.URL == "" {
-			log.Fatal("missing URL from Service")
+			log.Fatal("Config: missing URL from Service")
 		}
 		if service.Table == "" {
-			log.Fatal("missing Table from Service")
+			log.Fatal("Config: missing Table from Service")
 		}
 		if service.Token == "" {
 			service.Token = "123"

@@ -23,10 +23,10 @@ func RunSilverlining(cfg *config.Config, queue *services.Queue) error {
 	handler := func(c *silverlining.Context) {
 		switch string(c.Path()) {
 		case "/payments":
-			if c.Method() != silverlining.MethodPOST {
-				c.WriteFullBodyString(405, "Method not allowed")
-				return
-			}
+			// if c.Method() != silverlining.MethodPOST {
+			// 	c.WriteFullBodyString(405, "Method not allowed")
+			// 	return
+			// }
 			var payment models.Payment
 			if err := c.ReadJSON(&payment); err != nil {
 				c.WriteFullBodyString(400, "Invalid JSON payload")
@@ -37,31 +37,31 @@ func RunSilverlining(cfg *config.Config, queue *services.Queue) error {
 			return
 
 		case "/payments-summary":
-			if c.Method() != silverlining.MethodGET {
-				c.WriteFullBodyString(405, "Method not allowed")
-				return
-			}
+			// if c.Method() != silverlining.MethodGET {
+			// 	c.WriteFullBodyString(405, "Method not allowed")
+			// 	return
+			// }
 			var request models.SummaryRequest
 			if err := c.BindQuery(&request); err != nil {
-				c.WriteJSONIndent(400, map[string]string{"error": err.Error()}, "", "  ")
+				c.WriteFullBodyString(500, err.Error())
 				return
 			}
-			log.Println("request:", request)
 			response, err := services.GetSummary(&request)
 			if err != nil {
-				c.WriteJSONIndent(500, map[string]string{"error": err.Error()}, "", "  ")
+				c.WriteFullBodyString(500, err.Error())
 				return
 			}
 			c.WriteJSON(200, response)
 			return
 
 		case "/purge-payments":
-			if c.Method() != silverlining.MethodPOST {
-				c.WriteFullBodyString(405, "Method not allowed")
-				return
-			}
+			// if c.Method() != silverlining.MethodPOST {
+			// 	c.WriteFullBodyString(405, "Method not allowed")
+			// 	return
+			// }
 			if err := services.PurgePayments(); err != nil {
-				c.WriteJSONIndent(500, map[string]string{"error": err.Error()}, "", "  ")
+				c.WriteFullBodyString(500, err.Error())
+				return
 			}
 			c.WriteFullBodyString(200, "OK")
 			return

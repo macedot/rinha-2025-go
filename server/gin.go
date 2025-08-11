@@ -24,8 +24,8 @@ func RunGin(cfg *config.Config, queue *services.Queue) error {
 
 	app.GET("/payments-summary", func(c *gin.Context) {
 		var request models.SummaryRequest
-		request.StartTime = string(c.Query("from"))
-		request.EndTime = string(c.Query("to"))
+		request.StartTime = c.Query("from")
+		request.EndTime = c.Query("to")
 		response, err := services.GetSummary(&request)
 		if err != nil {
 			c.JSON(500, err.Error())

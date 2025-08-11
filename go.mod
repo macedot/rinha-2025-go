@@ -7,7 +7,6 @@ require (
 	github.com/go-www/silverlining v1.3.3
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/gogearbox/gearbox v1.2.4
-	github.com/joho/godotenv v1.5.1
 	github.com/ohler55/ojg v1.26.8
 	github.com/redis/go-redis/v9 v9.12.0
 	github.com/valyala/fasthttp v1.64.0

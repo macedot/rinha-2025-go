@@ -4,7 +4,6 @@ import (
 	"rinha-2025/config"
 	"rinha-2025/models"
 	"rinha-2025/services"
-	"runtime"
 
 	"github.com/gogearbox/gearbox"
 )
@@ -39,7 +38,6 @@ func RunGearbox(cfg *config.Config, queue *services.Queue) error {
 			ctx.Status(500).SendString(err.Error())
 			return
 		}
-		runtime.GC()
 		ctx.SendString("")
 	})
 

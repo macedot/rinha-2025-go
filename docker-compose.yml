@@ -1,11 +1,10 @@
 name: rinha-2025
 
 x-api_template: &api_template
+  #image: docker.io/macedot/rinha-2025:latest
   build: .
   volumes:
     - sockets:/sockets:rw
-  env_file:
-    - .env
   depends_on:
     - redis
   networks:
@@ -35,7 +34,7 @@ services:
     hostname: rinha-gateway
     volumes:
       - sockets:/sockets:rw
-      - ./haproxy-socket.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - api01
       - api02

@@ -48,6 +48,7 @@ func main() {
 		}
 	}()
 
+	log.Println("Server type:", cfg.ServerType)
 	switch cfg.ServerType {
 	case "fasthttp":
 		log.Fatal(server.RunFastHTTP(cfg, queue))

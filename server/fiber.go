@@ -6,7 +6,6 @@ import (
 	"rinha-2025/models"
 	"rinha-2025/services"
 	"rinha-2025/utils"
-	"runtime"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -14,7 +13,9 @@ import (
 )
 
 func RunFiber(cfg *config.Config, queue *services.Queue) error {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit: 1024 * 1024,
+	})
 	if cfg.DebugMode {
 		app.Use(logger.New())
 		app.Use(pprof.New())
@@ -26,7 +27,7 @@ func RunFiber(cfg *config.Config, queue *services.Queue) error {
 			return c.SendStatus(fiber.StatusBadRequest)
 		}
 		services.EnqueuePayment(&payment, queue)
-		return c.JSON(fiber.Map{})
+		return c.SendStatus(fiber.StatusOK)
 	})
 
 	app.Get("/payments-summary", func(c *fiber.Ctx) error {
@@ -45,8 +46,7 @@ func RunFiber(cfg *config.Config, queue *services.Queue) error {
 		if err := services.PurgePayments(); err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
-		runtime.GC()
-		return c.JSON(fiber.Map{})
+		return c.SendStatus(fiber.StatusOK)
 	})
 
 	if cfg.ServerSocket != "" {
