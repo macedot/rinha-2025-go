@@ -1,45 +1,46 @@
 # 💸 Sistema de Processamento de Pagamentos 💸
 
 Essa é minha participação na lendária [**Rinha de Backend 2025**](https://github.com/zanfranceschi/rinha-de-backend-2025)! 🥊
+Ela consiste em um sistema de processamento de pagamentos, com o objetivo de estudar e aprender Go e FastHTTP.
+O projeto foi em grande parte cop...digo, inspirado no projeto da [Joyce Godinho Bosco](https://github.com/joycegodinho/rinha-2025) e convertido para utlizar Unix sockets na comunicacao entre processos.
 
 ## 🛠️ Tecnologias Utilizadas 👨‍💻
 
 * **Go** - [Build simple, secure, scalable systems with Go](https://go.dev/)
-* **Echo** - [High performance, extensible, minimalist Go web framework](https://echo.labstack.com/)
-* **Redis** - [The Real-time Data Platform](https://redis.io/)
-* **go-redis** - [Redis Go client](https://github.com/redis/go-redis)
-* **HaProxy** - [The Reliable, High Perf. TCP/HTTP Load Balancer](https://www.haproxy.org/)
+* **FastHTTP** - [Fast HTTP for Go](https://github.com/valyala/fasthttp)
 
 ## 🚀 Como Rodar
 
-**Suba tudo com Docker!** 🐳
+### Suba tudo com Docker! 🐳
 
 ```bash
-git clone https://github.com/macedot/rinha-2025
-cd rinha-2025
+git clone https://github.com/macedot/rinha-2025-go
+cd rinha-2025-go
 docker compose up -d --build
 ```
 
 ## Execução local
 
-**Intel(R) Core(TM) i7-2635QM CPU @ 2.00GHz**
+### Intel(R) Core(TM) i7-2635QM CPU @ 2.00GHz
 
 ```json
 {
-  "total_liquido": 376801.41555,
-  "total_bruto": 333305.1,
-  "total_taxas": 16665.255,
-  "p99": {
-    "valor": "1.5ms",
-    "bonus": "19%",
-    "max_requests": "550",
-  }
+
 }
 ```
-## ✨ Repositório no GitHub
 
-Curtiu? Dê uma olhada no [código fonte](https://github.com/macedot/rinha-2025) e deixe uma ⭐!
+## Repositório no GitHub
 
-## ✨ Thanks
+Curtiu? Dê uma olhada no [código fonte](https://github.com/macedot/rinha-2025-go) e deixe uma ⭐!
 
-Aprendi muito com os projetos do [Alan Silva](https://github.com/alan-venv/rinha-de-backend-2025), [Anderson Gomes](https://github.com/andersongomes001/rinha-2025/) e [Josiney Jr.](https://github.com/JosineyJr/rdb25_02). Deixe uma ⭐ pra eles!
+## ✨ Agradecimentos
+
+Alguns dos projetos que inspiraram MUITO este projeto (obrigado a todos!):
+
+* [Alan Silva](https://github.com/alan-venv/rinha-de-backend-2025)
+* [Anderson Gomes](https://github.com/andersongomes001/rinha-2025/)
+* [Josiney Jr.](https://github.com/JosineyJr/rdb25_02)
+* [Marchos Uchoa](https://git.uchoamp.dev/uchoamp/zig-pay)
+* [Joyce Godinho Bosco](https://github.com/joycegodinho/rinha-2025)
+
+Deixe uma ⭐ pra eles!
