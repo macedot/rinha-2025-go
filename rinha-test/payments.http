@@ -1,0 +1,23 @@
+
+###
+POST http://localhost:9999/purge-payments
+
+###
+POST http://localhost:9999/payments
+Content-Type: application/json"
+
+{
+    "correlationId":"{{$guid}}",
+    "amount":1.00
+}
+
+###
+GET http://localhost:9999/payments-summary
+
+###
+GET http://localhost:8001/admin/payments-summary
+X-Rinha-Token: 123
+
+###
+POST http://localhost:8001/admin/purge-payments
+X-Rinha-Token: 123
