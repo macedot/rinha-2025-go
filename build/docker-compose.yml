@@ -1,0 +1,121 @@
+x-service-templates:
+  base: &base
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile
+    volumes:
+      - sockets:/sockets:rw
+    networks:
+      - backend
+      - payment-processor
+
+services:
+  gateway:
+    <<: *base
+    container_name: rinha-gateway
+    hostname: rinha-gateway
+    command: ./gateway
+    environment:
+      - SERVICES_SOCKETS=/sockets/go.sock.1,/sockets/go.sock.2,/sockets/go.sock.3
+    volumes:
+      - sockets:/sockets:rw
+    depends_on:
+      - api01
+      - api02
+      - api03
+    networks:
+      - backend
+    ports:
+      - "9999:9999"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: '50MB'
+
+  # gateway:
+  #   image: haproxy:alpine
+  #   container_name: rinha-gateway
+  #   hostname: rinha-gateway
+  #   volumes:
+  #     - sockets:/sockets:rw
+  #     - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+  #   depends_on:
+  #     - api01
+  #     - api02
+  #     - api03
+  #   networks:
+  #     - backend
+  #   ports:
+  #     - "9999:9999"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.10'
+  #         memory: '50MB'
+
+  api01: &api
+    <<: *base
+    hostname: api01
+    container_name: rinha-api01
+    command: ./service
+    environment:
+      - SERVICE_SOCKET=/sockets/go.sock.1
+      - STORAGE_SOCKET=/sockets/storage.sock
+    depends_on:
+      - storage
+    deploy:
+      resources:
+        limits:
+          cpus: '0.42'
+          memory: '50MB'
+
+  api02:
+    <<: *api
+    hostname: api02
+    container_name: rinha-api02
+    command: ./service
+    environment:
+      - SERVICE_SOCKET=/sockets/go.sock.2
+      - STORAGE_SOCKET=/sockets/storage.sock
+
+  api03:
+    <<: *api
+    hostname: api03
+    container_name: rinha-api03
+    command: ./service
+    environment:
+      - SERVICE_SOCKET=/sockets/go.sock.3
+      - STORAGE_SOCKET=/sockets/storage.sock
+
+  storage:
+    <<: *base
+    hostname: storage
+    container_name: rinha-storage
+    command: ./storage
+    environment:
+      - STORAGE_SOCKET=/sockets/storage.sock
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: '50MB'
+# SOON!
+# prometheus:
+#   image: prom/prometheus:v2.54.1
+#   volumes:
+#     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+#     - prometheus:/prometheus
+#   ports:
+#     - "9090:9090"
+#   networks:
+#     - backend
+
+volumes:
+  sockets:
+
+
+networks:
+  backend:
+  payment-processor:
+    external: true

@@ -8,6 +8,7 @@ O projeto foi em grande parte cop...digo, inspirado no projeto da [Joyce Godinho
 
 * **Go** - [Build simple, secure, scalable systems with Go](https://go.dev/)
 * **FastHTTP** - [Fast HTTP for Go](https://github.com/valyala/fasthttp)
+* **easyjson** - [Fast JSON serializer for golang](https://github.com/mailru/easyjson)
 
 ## 🚀 Como Rodar
 
@@ -19,7 +20,7 @@ cd rinha-2025-go
 docker compose up -d --build
 ```
 
-## Execução local
+## Execução local (rinha-final.js)
 
 ### Intel(R) Core(TM) i7-2635QM CPU @ 2.00GHz
 
