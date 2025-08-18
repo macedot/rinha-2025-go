@@ -1,9 +1,13 @@
 # Makefile for rinha-2025-rpc
 
 # Variables
-COMPOSE_FILE = docker-compose.yml
+APP_NAME := rinha-2025
 APP_PORT = 9999
+COMPOSE_FILE = ./build/docker-compose.yml
 CURL = curl -s -w "\nHTTP Status: %{http_code}\n"
+DOCKER_USER := macedot
+IMAGE_NAME := $(DOCKER_USER)/$(APP_NAME)
+VERSION := $(shell git rev-parse --short HEAD)
 
 # Default target
 .PHONY: all
@@ -40,6 +44,19 @@ clean:
 logs:
 	@echo "Displaying logs..."
 	docker-compose -f $(COMPOSE_FILE) logs -f
+
+# Build the Docker image
+.PHONY: image
+image:
+	@echo "🐳 Build da imagem Docker..."
+	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
+
+# Push the Docker image to Docker Hub
+.PHONY: push
+push:
+	@echo "🔐 Enviando imagens..."
+	docker push $(IMAGE_NAME):$(VERSION)
+	docker push $(IMAGE_NAME):latest
 
 # Test the POST /payments endpoint
 .PHONY: test-payment
