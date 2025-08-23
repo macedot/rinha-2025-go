@@ -7,7 +7,6 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	sync "sync"
 )
 
 // suppress unused package warning
@@ -328,179 +327,7 @@ func (v *PaymentRequest) UnmarshalJSON(data []byte) error {
 func (v *PaymentRequest) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes3(l, v)
 }
-func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(in *jlexer.Lexer, out *PaymentRecord) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "Amount":
-			out.Amount = int64(in.Int64())
-		case "RequestedAt":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.RequestedAt).UnmarshalJSON(data))
-			}
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(out *jwriter.Writer, in PaymentRecord) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"Amount\":"
-		out.RawString(prefix[1:])
-		out.Int64(int64(in.Amount))
-	}
-	{
-		const prefix string = ",\"RequestedAt\":"
-		out.RawString(prefix)
-		out.Raw((in.RequestedAt).MarshalJSON())
-	}
-	out.RawByte('}')
-}
-
-// MarshalJSON supports json.Marshaler interface
-func (v PaymentRecord) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(&w, v)
-	return w.Buffer.BuildBytes(), w.Error
-}
-
-// MarshalEasyJSON supports easyjson.Marshaler interface
-func (v PaymentRecord) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(w, v)
-}
-
-// UnmarshalJSON supports json.Unmarshaler interface
-func (v *PaymentRecord) UnmarshalJSON(data []byte) error {
-	r := jlexer.Lexer{Data: data}
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(&r, v)
-	return r.Error()
-}
-
-// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *PaymentRecord) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(l, v)
-}
-func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes5(in *jlexer.Lexer, out *HealthSummary) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "default":
-			if in.IsNull() {
-				in.Skip()
-				out.Default = nil
-			} else {
-				if out.Default == nil {
-					out.Default = new(ProcessorHealth)
-				}
-				(*out.Default).UnmarshalEasyJSON(in)
-			}
-		case "fallback":
-			if in.IsNull() {
-				in.Skip()
-				out.Fallback = nil
-			} else {
-				if out.Fallback == nil {
-					out.Fallback = new(ProcessorHealth)
-				}
-				(*out.Fallback).UnmarshalEasyJSON(in)
-			}
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes5(out *jwriter.Writer, in HealthSummary) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"default\":"
-		out.RawString(prefix[1:])
-		if in.Default == nil {
-			out.RawString("null")
-		} else {
-			(*in.Default).MarshalEasyJSON(out)
-		}
-	}
-	{
-		const prefix string = ",\"fallback\":"
-		out.RawString(prefix)
-		if in.Fallback == nil {
-			out.RawString("null")
-		} else {
-			(*in.Fallback).MarshalEasyJSON(out)
-		}
-	}
-	out.RawByte('}')
-}
-
-// MarshalJSON supports json.Marshaler interface
-func (v HealthSummary) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes5(&w, v)
-	return w.Buffer.BuildBytes(), w.Error
-}
-
-// MarshalEasyJSON supports easyjson.Marshaler interface
-func (v HealthSummary) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes5(w, v)
-}
-
-// UnmarshalJSON supports json.Unmarshaler interface
-func (v *HealthSummary) UnmarshalJSON(data []byte) error {
-	r := jlexer.Lexer{Data: data}
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes5(&r, v)
-	return r.Error()
-}
-
-// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *HealthSummary) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes5(l, v)
-}
-func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes6(in *jlexer.Lexer, out *HealthResponse) {
+func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(in *jlexer.Lexer, out *HealthResponse) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -533,7 +360,7 @@ func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes6(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes6(out *jwriter.Writer, in HealthResponse) {
+func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(out *jwriter.Writer, in HealthResponse) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -553,145 +380,23 @@ func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes6(out *jwriter.
 // MarshalJSON supports json.Marshaler interface
 func (v HealthResponse) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes6(&w, v)
+	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v HealthResponse) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes6(w, v)
+	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *HealthResponse) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes6(&r, v)
+	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *HealthResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes6(l, v)
-}
-func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes7(in *jlexer.Lexer, out *HealthDB) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "MuDefault":
-			easyjsonD2c14bDecodeSync(in, &out.MuDefault)
-		case "MuFallback":
-			easyjsonD2c14bDecodeSync(in, &out.MuFallback)
-		case "Default":
-			(out.Default).UnmarshalEasyJSON(in)
-		case "Fallback":
-			(out.Fallback).UnmarshalEasyJSON(in)
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes7(out *jwriter.Writer, in HealthDB) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"MuDefault\":"
-		out.RawString(prefix[1:])
-		easyjsonD2c14bEncodeSync(out, in.MuDefault)
-	}
-	{
-		const prefix string = ",\"MuFallback\":"
-		out.RawString(prefix)
-		easyjsonD2c14bEncodeSync(out, in.MuFallback)
-	}
-	{
-		const prefix string = ",\"Default\":"
-		out.RawString(prefix)
-		(in.Default).MarshalEasyJSON(out)
-	}
-	{
-		const prefix string = ",\"Fallback\":"
-		out.RawString(prefix)
-		(in.Fallback).MarshalEasyJSON(out)
-	}
-	out.RawByte('}')
-}
-
-// MarshalJSON supports json.Marshaler interface
-func (v HealthDB) MarshalJSON() ([]byte, error) {
-	w := jwriter.Writer{}
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes7(&w, v)
-	return w.Buffer.BuildBytes(), w.Error
-}
-
-// MarshalEasyJSON supports easyjson.Marshaler interface
-func (v HealthDB) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes7(w, v)
-}
-
-// UnmarshalJSON supports json.Unmarshaler interface
-func (v *HealthDB) UnmarshalJSON(data []byte) error {
-	r := jlexer.Lexer{Data: data}
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes7(&r, v)
-	return r.Error()
-}
-
-// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *HealthDB) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes7(l, v)
-}
-func easyjsonD2c14bDecodeSync(in *jlexer.Lexer, out *sync.Mutex) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjsonD2c14bEncodeSync(out *jwriter.Writer, in sync.Mutex) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	out.RawByte('}')
+	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(l, v)
 }

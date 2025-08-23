@@ -48,7 +48,7 @@ func (c *HttpClient) GetTimeout(url string, timeout time.Duration) (int, []byte,
 }
 
 func (c *HttpClient) Post(url string, payload []byte) (int, []byte, error) {
-	return c.PostTimeout(url, payload, 10*time.Second)
+	return c.PostTimeout(url, payload, 6*time.Second)
 }
 
 func (c *HttpClient) PostTimeout(url string, payload []byte, timeout time.Duration) (int, []byte, error) {

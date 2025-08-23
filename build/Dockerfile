@@ -4,16 +4,11 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY . .
 ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v2 GOGC=off GOMEMLIMIT=50MiB
-# ENV CGO_ENABLED=0 GOMEMLIMIT=50MiB
-# RUN go build -pgo=gateway.pprof -ldflags='-s -w' -o /app/gateway ./cmd/gateway/main.go
-# RUN go build -pgo=service.pprof -ldflags='-s -w' -o /app/service ./cmd/service/main.go
-# RUN go build -pgo=storage.pprof -ldflags='-s -w' -o /app/storage ./cmd/storage/main.go
-RUN go build -ldflags='-s -w' -o /app/gateway ./cmd/gateway/main.go
-RUN go build -ldflags='-s -w' -o /app/service ./cmd/service/main.go
-RUN go build -ldflags='-s -w' -o /app/storage ./cmd/storage/main.go
+# curl -o rinha.pprof "http://10.4.2.250:8081/debug/pprof/profile?seconds=70"
+RUN go build -pgo=producer.pprof -ldflags='-s -w' -o /app/producer ./cmd/producer/main.go
+RUN go build -pgo=consumer.pprof -ldflags='-s -w' -o /app/consumer ./cmd/consumer/main.go
 FROM scratch
 WORKDIR /app
-COPY --from=builder /app/gateway .
-COPY --from=builder /app/service .
-COPY --from=builder /app/storage .
+COPY --from=builder /app/producer .
+COPY --from=builder /app/consumer .
 EXPOSE 9999 8888

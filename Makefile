@@ -13,6 +13,11 @@ VERSION := $(shell git rev-parse --short HEAD)
 .PHONY: all
 all: build up logs
 
+# Restart
+.PHONY: restart
+restart: down up logs
+
+
 # Build the Docker images
 .PHONY: build
 build:
@@ -49,7 +54,7 @@ logs:
 .PHONY: image
 image:
 	@echo "🐳 Build da imagem Docker..."
-	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
+	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest --file ./build/Dockerfile .
 
 # Push the Docker image to Docker Hub
 .PHONY: push
