@@ -32,12 +32,12 @@ services:
     <<: *base
     hostname: api01
     container_name: rinha-api01
-    command: ./producer
     environment:
       - REDIS_ADDR=storage:6379
       - SERVICE_SOCKET=/sockets/go.sock.1
     networks:
       - backend
+      - payment-processor
     ports:
       - "8081:8888"
     depends_on:
@@ -46,41 +46,18 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.10'
-          memory: 50M
+          cpus: '0.40'
+          memory: 100M
 
   api02:
     <<: *api
     hostname: api02
     container_name: rinha-api02
-    command: ./producer
     environment:
       - REDIS_ADDR=storage:6379
       - SERVICE_SOCKET=/sockets/go.sock.2
     ports:
       - "8082:8888"
-
-  consumer:
-    <<: *base
-    hostname: consumer
-    container_name: rinha-consumer
-    command: ./consumer
-    environment:
-      - REDIS_ADDR=storage:6379
-    networks:
-      - backend
-      - payment-processor
-    ports:
-      - "8089:8888"
-    depends_on:
-      storage:
-        condition: service_healthy
-    restart: on-failure
-    deploy:
-      resources:
-        limits:
-          cpus: '0.70'
-          memory: 100M
 
   storage:
     image: redis:alpine
@@ -100,8 +77,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 100M
+          cpus: '0.60'
+          memory: 50M
     sysctls:
       - net.core.somaxconn=1024
 

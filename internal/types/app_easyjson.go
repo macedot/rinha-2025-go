@@ -327,7 +327,82 @@ func (v *PaymentRequest) UnmarshalJSON(data []byte) error {
 func (v *PaymentRequest) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes3(l, v)
 }
-func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(in *jlexer.Lexer, out *HealthResponse) {
+func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(in *jlexer.Lexer, out *PaymentRecord) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "amount":
+			out.Amount = int64(in.Int64())
+		case "requestedAt":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.RequestedAt).UnmarshalJSON(data))
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(out *jwriter.Writer, in PaymentRecord) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"amount\":"
+		out.RawString(prefix[1:])
+		out.Int64(int64(in.Amount))
+	}
+	{
+		const prefix string = ",\"requestedAt\":"
+		out.RawString(prefix)
+		out.Raw((in.RequestedAt).MarshalJSON())
+	}
+	out.RawByte('}')
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v PaymentRecord) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v PaymentRecord) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *PaymentRecord) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *PaymentRecord) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(l, v)
+}
+func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes5(in *jlexer.Lexer, out *HealthResponse) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -360,7 +435,7 @@ func easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(out *jwriter.Writer, in HealthResponse) {
+func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes5(out *jwriter.Writer, in HealthResponse) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -380,23 +455,23 @@ func easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(out *jwriter.
 // MarshalJSON supports json.Marshaler interface
 func (v HealthResponse) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(&w, v)
+	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes5(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v HealthResponse) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes4(w, v)
+	easyjsonD2c14bEncodeGithubComMacedotRinha2025GoInternalTypes5(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *HealthResponse) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(&r, v)
+	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes5(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *HealthResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes4(l, v)
+	easyjsonD2c14bDecodeGithubComMacedotRinha2025GoInternalTypes5(l, v)
 }

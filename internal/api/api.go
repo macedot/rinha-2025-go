@@ -1,9 +1,9 @@
-package producer
+package api
 
 import (
 	"log"
 
-	"github.com/macedot/rinha-2025-go/internal/producer/handler"
+	"github.com/macedot/rinha-2025-go/internal/api/handler"
 	"github.com/macedot/rinha-2025-go/pkg/server"
 	"github.com/macedot/rinha-2025-go/pkg/storage"
 	"github.com/macedot/rinha-2025-go/pkg/util"

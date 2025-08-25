@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
+	"strconv"
 	"sync"
 	"time"
 
@@ -70,21 +70,14 @@ func getSummary(rdb *redis.Client, from, to time.Time, key string) types.Summary
 		log.Printf("Failed to get summary (%s): %v", key, err)
 		return types.SummaryServer{}
 	}
-
 	count := len(results)
-	totalAmount := float64(0)
-
-	var record types.PaymentRequest
+	totalAmount := int64(0)
 	for _, result := range results {
-		if err := record.UnmarshalJSON([]byte(result)); err != nil {
-			log.Printf("Deserialization error in summary: %v", err)
-			continue
-		}
-		totalAmount += record.Amount
+		amount, _ := strconv.ParseInt(result, 10, 64)
+		totalAmount += amount
 	}
-
 	return types.SummaryServer{
 		TotalRequests: count,
-		TotalAmount:   math.Round(totalAmount*100) / 100,
+		TotalAmount:   float64(totalAmount) / 100,
 	}
 }

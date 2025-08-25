@@ -1,12 +1,12 @@
-package consumer
+package worker
 
 import (
 	"context"
 	"log"
 	"time"
 
-	"github.com/macedot/rinha-2025-go/internal/consumer/health"
 	"github.com/macedot/rinha-2025-go/internal/types"
+	"github.com/macedot/rinha-2025-go/internal/worker/health"
 	"github.com/macedot/rinha-2025-go/pkg/client"
 	"github.com/macedot/rinha-2025-go/pkg/storage"
 	"github.com/macedot/rinha-2025-go/pkg/util"
@@ -26,7 +26,7 @@ func (c *Consumer) Init() {
 	go c.fallbackChecker.CheckAndUpdateHealth()
 }
 
-func (c *Consumer) ProcessQueue() {
+func (c *Consumer) ProcessQueue() error {
 	ctx := context.Background()
 	for {
 		result, err := c.Redis.BLPop(ctx, 0*time.Second, "payment_queue").Result()
@@ -59,6 +59,9 @@ func (c *Consumer) processPayment(payload []byte) {
 	var payment types.PaymentRequest
 	_ = payment.UnmarshalJSON(payload)
 
+	score := float64(payment.RequestedAt.UnixNano())
+	amount := int64(payment.Amount * 100)
+
 	status, _, err := c.Client.Post(endpoint, payload)
 	if err != nil || status != fasthttp.StatusOK {
 		log.Println("Failed to process payment:", status, err)
@@ -67,10 +70,9 @@ func (c *Consumer) processPayment(payload []byte) {
 		return
 	}
 	err = c.Redis.ZAdd(context.Background(), key, redis.Z{
-		Score:  float64(payment.RequestedAt.UnixNano()),
-		Member: payload,
+		Score:  score,
+		Member: amount,
 	}).Err()
-
 	if err != nil {
 		log.Fatalln("Failed to store payment:", err.Error())
 	}
@@ -111,11 +113,10 @@ func Run() error {
 		},
 	}
 	consumer.Init()
-	consumer.ProcessQueue()
-	return nil
+	return consumer.ProcessQueue()
 }
 
-// const gragefulLag = 150
+const gragefulLag = 100
 
 func selectProcessor(defaultHealth, fallbackHealth *types.ProcessorHealth) string {
 	useDefault := (defaultHealth != nil && !defaultHealth.Failing)
@@ -129,9 +130,9 @@ func selectProcessor(defaultHealth, fallbackHealth *types.ProcessorHealth) strin
 	if !useFallback {
 		return "default"
 	}
-	// if defaultHealth.MinResponseTime <= (fallbackHealth.MinResponseTime + gragefulLag) {
-	// 	return "default"
-	// }
+	if defaultHealth.MinResponseTime <= (fallbackHealth.MinResponseTime + gragefulLag) {
+		return "default"
+	}
 	if 3*defaultHealth.MinResponseTime <= fallbackHealth.MinResponseTime {
 		return "default"
 	}

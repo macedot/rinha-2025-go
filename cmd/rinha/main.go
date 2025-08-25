@@ -6,7 +6,8 @@ import (
 	_ "net/http/pprof"
 	"runtime"
 
-	"github.com/macedot/rinha-2025-go/internal/consumer"
+	"github.com/macedot/rinha-2025-go/internal/api"
+	"github.com/macedot/rinha-2025-go/internal/worker"
 )
 
 func main() {
@@ -14,5 +15,8 @@ func main() {
 	go func() {
 		log.Println(http.ListenAndServe(":8888", nil))
 	}()
-	log.Fatalln(consumer.Run())
+	go func() {
+		log.Fatalln(worker.Run())
+	}()
+	log.Fatalln(api.Run())
 }
