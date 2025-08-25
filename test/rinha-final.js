@@ -11,7 +11,7 @@ export const token = __ENV.TOKEN ?? initialToken;
 const MAX_REQUESTS = __ENV.MAX_REQUESTS ?? 603;
 
 const paymentProcessorDefaultHttp = new Httpx({
-    baseURL: 'http://10.4.2.250:8001',
+    baseURL: 'http://10.4.2.240:8001',
     headers: {
         'Content-Type': 'application/json',
         'X-Rinha-Token': token
@@ -20,7 +20,7 @@ const paymentProcessorDefaultHttp = new Httpx({
 });
 
 const paymentProcessorFallbacktHttp = new Httpx({
-    baseURL: 'http://10.4.2.250:8002',
+    baseURL: 'http://10.4.2.240:8002',
     headers: {
         'Content-Type': 'application/json',
         'X-Rinha-Token': token
@@ -29,7 +29,7 @@ const paymentProcessorFallbacktHttp = new Httpx({
 });
 
 const backendHttp = new Httpx({
-    baseURL: "http://10.4.2.250:9999",
+    baseURL: "http://10.4.2.240:9999",
     headers: {
         "Content-Type": "application/json",
     },

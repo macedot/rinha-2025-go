@@ -80,7 +80,7 @@ services:
       resources:
         limits:
           cpus: '0.70'
-          memory: 50M
+          memory: 100M
 
   storage:
     image: redis:alpine

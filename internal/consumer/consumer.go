@@ -30,7 +30,6 @@ func (c *Consumer) ProcessQueue() {
 	ctx := context.Background()
 	for {
 		result, err := c.Redis.BLPop(ctx, 0*time.Second, "payment_queue").Result()
-		log.Println("ProcessQueue:", result)
 		if err != nil {
 			log.Printf("Queue pop error: %v", err)
 			time.Sleep(time.Second)
