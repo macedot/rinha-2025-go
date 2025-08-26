@@ -3,46 +3,65 @@ package consumer
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
+	"github.com/macedot/rinha-2025-go/internal/consumer/cache"
 	"github.com/macedot/rinha-2025-go/internal/consumer/health"
 	"github.com/macedot/rinha-2025-go/internal/types"
 	"github.com/macedot/rinha-2025-go/pkg/client"
-	"github.com/macedot/rinha-2025-go/pkg/storage"
+	"github.com/macedot/rinha-2025-go/pkg/server"
 	"github.com/macedot/rinha-2025-go/pkg/util"
-	"github.com/redis/go-redis/v9"
 	"github.com/valyala/fasthttp"
 )
 
+var paymentChannel = make(chan []byte, 10000)
+
 type Consumer struct {
-	Redis           *redis.Client
 	Client          *client.HttpClient
 	defaultChecker  *health.HealthManager
 	fallbackChecker *health.HealthManager
+	Payments        *cache.MemoryDB
 }
 
-func (c *Consumer) Init() {
+func NewConsumer() *Consumer {
+	client := client.NewHttpClient().Init()
+	return &Consumer{
+		Client: client,
+		defaultChecker: health.NewHealthManager(
+			client,
+			"default",
+			"http://payment-processor-default:8080/payments/service-health",
+		),
+		fallbackChecker: health.NewHealthManager(
+			client,
+			"fallback",
+			"http://payment-processor-fallback:8080/payments/service-health",
+		),
+		Payments: cache.NewMemoryDB(),
+	}
+}
+
+func (c *Consumer) Init() *Consumer {
 	go c.defaultChecker.CheckAndUpdateHealth()
 	go c.fallbackChecker.CheckAndUpdateHealth()
+	return c
 }
 
-func (c *Consumer) ProcessQueue() {
-	ctx := context.Background()
+func (c *Consumer) ProcessQueue(ctx context.Context) *Consumer {
 	for {
-		result, err := c.Redis.BLPop(ctx, 0*time.Second, "payment_queue").Result()
-		if err != nil {
-			log.Printf("Queue pop error: %v", err)
-			time.Sleep(time.Second)
-			continue
+		select {
+		case <-ctx.Done():
+			return c
+		case job := <-paymentChannel:
+			c.processPayment(job)
 		}
-		payload := []byte(result[1])
-		c.processPayment(payload)
 	}
 }
 
 func (c *Consumer) processPayment(payload []byte) {
-	defaultHealth, _ := c.defaultChecker.GetHealth()
-	fallbackHealth, _ := c.fallbackChecker.GetHealth()
+	defaultHealth := c.defaultChecker.GetHealth()
+	fallbackHealth := c.fallbackChecker.GetHealth()
 	processor := selectProcessor(defaultHealth, fallbackHealth)
 	if processor == "" {
 		c.addToRetryQueue(payload)
@@ -50,10 +69,10 @@ func (c *Consumer) processPayment(payload []byte) {
 	}
 
 	endpoint := "http://payment-processor-default:8080/payments"
-	key := "default_payments"
+	//key := "default_payments"
 	if processor != "default" {
 		endpoint = "http://payment-processor-fallback:8080/payments"
-		key = "fallback_payments"
+		//	key = "fallback_payments"
 	}
 
 	var payment types.PaymentRequest
@@ -66,56 +85,105 @@ func (c *Consumer) processPayment(payload []byte) {
 		c.addToRetryQueue(payload)
 		return
 	}
-	err = c.Redis.ZAdd(context.Background(), key, redis.Z{
-		Score:  float64(payment.RequestedAt.UnixNano()),
-		Member: payload,
-	}).Err()
-
-	if err != nil {
-		log.Fatalln("Failed to store payment:", err.Error())
-	}
+	// err = c.Redis.ZAdd(context.Background(), key, redis.Z{
+	// 	Score:  float64(payment.RequestedAt.UnixNano()),
+	// 	Member: payload,
+	// }).Err()
 }
 
 func (c *Consumer) markProcessorAsFailing(proc string) {
 	if proc == "default" {
-		c.defaultChecker.SaveHealthToRedis(true, 9999)
+		c.defaultChecker.SaveHealth(true, 9999)
 	} else {
-		c.fallbackChecker.SaveHealthToRedis(true, 9999)
+		c.fallbackChecker.SaveHealth(true, 9999)
 	}
 }
 
 func (c *Consumer) addToRetryQueue(payload []byte) {
-	if err := c.Redis.RPush(context.Background(), "payment_queue", payload).Err(); err != nil {
-		log.Fatalln("Failed to requeue payment:", err.Error())
-	}
+	paymentChannel <- payload
+}
+
+func (c *Consumer) GetSummary(from, to time.Time) []byte {
+	response := c.Payments.QuerySummary(from, to)
+	body, _ := response.MarshalJSON()
+	return body
 }
 
 func Run() error {
-	rdb := storage.NewRedisClient(util.GetEnv("REDIS_ADDR"))
-	defer rdb.Close()
-	client := client.NewHttpClient().Init()
-	consumer := &Consumer{
-		Redis:  rdb,
-		Client: client,
-		defaultChecker: &health.HealthManager{
-			Redis:     rdb,
-			Client:    client,
-			Processor: "default",
-			Endpoint:  "http://payment-processor-default:8080/payments/service-health",
-		},
-		fallbackChecker: &health.HealthManager{
-			Redis:     rdb,
-			Client:    client,
-			Processor: "fallback",
-			Endpoint:  "http://payment-processor-fallback:8080/payments/service-health",
-		},
-	}
-	consumer.Init()
-	consumer.ProcessQueue()
+	var wg sync.WaitGroup
+
+	consumer := NewConsumer().Init()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		consumer.ProcessQueue(context.Background())
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ServerFromSocket("SOCKET_PAYMENT_IN",
+			func(ctx *fasthttp.RequestCtx) {
+				paymentChannel <- ctx.PostBody()
+				ctx.SetStatusCode(fasthttp.StatusAccepted)
+			})
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ServerFromSocket("SOCKET_SUMMARY_IN",
+			func(ctx *fasthttp.RequestCtx) {
+				fromStr := string(ctx.QueryArgs().Peek("from"))
+				toStr := string(ctx.QueryArgs().Peek("to"))
+				from := time.Unix(0, 0).UTC()
+				to := time.Now().UTC()
+				var err error
+				if fromStr != "" {
+					from, err = time.Parse(time.RFC3339, fromStr)
+					if err != nil {
+						ctx.Error("Invalid 'from' timestamp", fasthttp.StatusBadRequest)
+						return
+					}
+				}
+				if toStr != "" {
+					to, err = time.Parse(time.RFC3339, toStr)
+					if err != nil {
+						ctx.Error("Invalid 'to' timestamp", fasthttp.StatusBadRequest)
+						return
+					}
+				}
+				if from.After(to) {
+					ctx.Error("Invalid 'from' and 'to' timestamps", fasthttp.StatusBadRequest)
+					return
+				}
+				body := consumer.GetSummary(from, to)
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.SetContentType("application/json")
+				ctx.SetBody(body)
+				ctx.SetStatusCode(fasthttp.StatusOK)
+			})
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ServerFromSocket("SOCKET_PURGE_IN",
+			func(ctx *fasthttp.RequestCtx) {
+				ctx.SetStatusCode(fasthttp.StatusOK)
+			})
+	}()
+
+	wg.Wait()
 	return nil
 }
 
-// const gragefulLag = 150
+func ServerFromSocket(envVar string, handler func(ctx *fasthttp.RequestCtx)) error {
+	socket := util.NewSocketFromEnv(envVar)
+	log.Printf("Listen on %s", socket)
+	return server.RunSocketServer(socket, handler)
+}
 
 func selectProcessor(defaultHealth, fallbackHealth *types.ProcessorHealth) string {
 	useDefault := (defaultHealth != nil && !defaultHealth.Failing)
@@ -129,9 +197,6 @@ func selectProcessor(defaultHealth, fallbackHealth *types.ProcessorHealth) strin
 	if !useFallback {
 		return "default"
 	}
-	// if defaultHealth.MinResponseTime <= (fallbackHealth.MinResponseTime + gragefulLag) {
-	// 	return "default"
-	// }
 	if 3*defaultHealth.MinResponseTime <= fallbackHealth.MinResponseTime {
 		return "default"
 	}

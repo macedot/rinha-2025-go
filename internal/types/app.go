@@ -10,6 +10,11 @@ type PaymentRequest struct {
 	RequestedAt   time.Time `json:"requestedAt"`
 }
 
+type PaymentRecord struct {
+	Amount      int64     `json:"amount"`
+	RequestedAt time.Time `json:"requestedAt"`
+}
+
 type SummaryServer struct {
 	TotalRequests int     `json:"totalRequests"`
 	TotalAmount   float64 `json:"totalAmount"`

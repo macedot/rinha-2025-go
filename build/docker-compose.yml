@@ -4,7 +4,10 @@ x-service-templates:
       context: ../
       dockerfile: ./build/Dockerfile
     volumes:
-      - sockets:/sockets:rw
+      - type: tmpfs
+        target: /tmp/sockets
+        tmpfs:
+          size: 50 # Size in MB
 
 services:
   gateway:
@@ -12,7 +15,6 @@ services:
     container_name: rinha-gateway
     hostname: rinha-gateway
     volumes:
-      - sockets:/sockets:rw
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - api01
@@ -34,8 +36,10 @@ services:
     container_name: rinha-api01
     command: ./producer
     environment:
-      - REDIS_ADDR=storage:6379
-      - SERVICE_SOCKET=/sockets/go.sock.1
+      - SOCKET_PAYMENT_IN=/tmp/sockets/payment.sock.1
+      - SOCKET_SUMMARY_IN=/tmp/sockets/summary.sock.1
+      - SOCKET_PAYMENT_OUT=/tmp/sockets/payment.sock
+      - SOCKET_SUMMARY_OUT=/tmp/sockets/summary.sock
     networks:
       - backend
     ports:
@@ -46,7 +50,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.10'
+          cpus: '0.20'
           memory: 50M
 
   api02:
@@ -54,9 +58,13 @@ services:
     hostname: api02
     container_name: rinha-api02
     command: ./producer
+    depends_on:
+      - consumer
     environment:
-      - REDIS_ADDR=storage:6379
-      - SERVICE_SOCKET=/sockets/go.sock.2
+      - SOCKET_PAYMENT_IN=/tmp/sockets/payment.sock.1
+      - SOCKET_SUMMARY_IN=/tmp/sockets/summary.sock.1
+      - SOCKET_PAYMENT_OUT=/tmp/sockets/payment.sock
+      - SOCKET_SUMMARY_OUT=/tmp/sockets/summary.sock
     ports:
       - "8082:8888"
 
@@ -66,49 +74,19 @@ services:
     container_name: rinha-consumer
     command: ./consumer
     environment:
-      - REDIS_ADDR=storage:6379
+      - SOCKET_PAYMENT_IN=/tmp/sockets/payment.sock
+      - SOCKET_SUMMARY_IN=/tmp/sockets/summary.sock
+      - SOCKET_PURGE_IN=/tmp/sockets/purge.sock
     networks:
       - backend
       - payment-processor
     ports:
       - "8089:8888"
-    depends_on:
-      storage:
-        condition: service_healthy
-    restart: on-failure
     deploy:
       resources:
         limits:
-          cpus: '0.70'
+          cpus: '1.00'
           memory: 100M
-
-  storage:
-    image: redis:alpine
-    hostname: storage
-    container_name: rinha-storage
-    ports:
-      - "6379:6379"
-    volumes:
-      - storage:/data
-    networks:
-      - backend
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 2s
-      timeout: 2s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 100M
-    sysctls:
-      - net.core.somaxconn=1024
-
-volumes:
-  sockets:
-  storage:
-
 
 networks:
   backend:

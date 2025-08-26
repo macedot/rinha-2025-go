@@ -3,6 +3,7 @@ module github.com/macedot/rinha-2025-go
 go 1.24.6
 
 require (
+	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/mailru/easyjson v0.9.0
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/valyala/fasthttp v1.65.0
