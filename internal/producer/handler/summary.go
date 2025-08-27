@@ -14,7 +14,7 @@ func SummaryHandler(ctx *fasthttp.RequestCtx, client *client.SocketClient) {
 	}
 	from := string(ctx.QueryArgs().Peek("from"))
 	to := string(ctx.QueryArgs().Peek("to"))
-	statusCode, body, err := client.Get(fmt.Sprintf("http://unix/summary?from=%s&to=%s", from, to))
+	statusCode, body, err := client.Get(fmt.Sprintf("/summary?from=%s&to=%s", from, to))
 	if err != nil || statusCode != fasthttp.StatusOK {
 		ctx.Error(fmt.Sprintf("Failed to get summary (%d): %v", statusCode, err), fasthttp.StatusInternalServerError)
 		return

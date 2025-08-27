@@ -21,11 +21,14 @@ func NewSocketFile(socketPath string) string {
 	if err := os.RemoveAll(socketPath); err != nil {
 		log.Fatalf("Failed to remove existing socket: %v", err)
 	}
-	// fp, err := os.Create(socketPath)
-	// if err != nil {
-	// 	log.Fatalf("Failed to create socket file: %v", err)
-	// }
-	// fp.Close()
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		log.Fatalf("Failed to listen on Unix socket: %v", err)
+	}
+	listener.Close()
+	if err := os.RemoveAll(socketPath); err != nil {
+		log.Fatalf("Failed to remove existing socket: %v", err)
+	}
 	return socketPath
 }
 

@@ -2,7 +2,7 @@ package producer
 
 import (
 	"log"
-	"sync"
+	"os"
 
 	"github.com/macedot/rinha-2025-go/internal/producer/handler"
 	"github.com/macedot/rinha-2025-go/pkg/client"
@@ -12,29 +12,25 @@ import (
 )
 
 func Run() error {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		socketIn := util.NewSocketFromEnv("SOCKET_PAYMENT_IN")
-		socketOut := util.NewSocketFromEnv("SOCKET_PAYMENT_OUT")
-		socketClient := client.NewSocketClient().Init(socketOut)
-		log.Printf("Listen for payments on %s", socketIn)
-		server.RunSocketServer(socketIn,
-			func(ctx *fasthttp.RequestCtx) {
-				handler.PaymentHandler(ctx, socketClient)
-			})
-	}()
-	wg.Add(1)
-	go func() {
-		socketIn := util.NewSocketFromEnv("SOCKET_SUMMARY_IN")
-		socketOut := util.NewSocketFromEnv("SOCKET_SUMMARY_OUT")
-		socketClient := client.NewSocketClient().Init(socketOut)
-		log.Printf("Listen for summary on %s", socketIn)
-		server.RunSocketServer(socketIn,
-			func(ctx *fasthttp.RequestCtx) {
-				handler.SummaryHandler(ctx, socketClient)
-			})
-	}()
-	wg.Wait()
-	return nil
+	requestSocket := util.NewSocketFromEnv("SOCKET_API")
+	defer os.Remove(requestSocket)
+
+	paymentSocket := util.NewSocketFromEnv("SOCKET_PAYMENT")
+	paymentClient := client.NewSocketClient().Init(paymentSocket)
+
+	summarySocket := util.NewSocketFromEnv("SOCKET_SUMMARY")
+	summaryClient := client.NewSocketClient().Init(summarySocket)
+
+	log.Printf("Listen on %s", requestSocket)
+	return server.RunSocketServer(requestSocket,
+		func(ctx *fasthttp.RequestCtx) {
+			switch string(ctx.Path()) {
+			case "/payments":
+				handler.PaymentHandler(ctx, paymentClient)
+			case "/payments-summary":
+				handler.SummaryHandler(ctx, summaryClient)
+			default:
+				ctx.Error("Not Found", fasthttp.StatusNotFound)
+			}
+		})
 }

@@ -15,7 +15,7 @@ func PaymentHandler(ctx *fasthttp.RequestCtx, client *client.SocketClient) {
 	}
 	var payment types.PaymentRequest
 	if err := payment.UnmarshalJSON(ctx.PostBody()); err != nil {
-		ctx.Error("Invalid JSON", fasthttp.StatusBadRequest)
+		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		return
 	}
 	if payment.CorrelationID == "" || payment.Amount <= 0 {
@@ -24,9 +24,9 @@ func PaymentHandler(ctx *fasthttp.RequestCtx, client *client.SocketClient) {
 	}
 	payment.RequestedAt = time.Now().UTC()
 	paymentJSON, _ := payment.MarshalJSON()
-	_, err := client.Post("http://unix/payments", paymentJSON)
+	_, err := client.Post("/payments", paymentJSON)
 	if err != nil {
-		ctx.Error("Failed to queue payment", fasthttp.StatusInternalServerError)
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusAccepted)

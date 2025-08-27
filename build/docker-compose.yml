@@ -3,11 +3,6 @@ x-service-templates:
     build:
       context: ../
       dockerfile: ./build/Dockerfile
-    volumes:
-      - type: tmpfs
-        target: /tmp/sockets
-        tmpfs:
-          size: 50 # Size in MB
 
 services:
   gateway:
@@ -16,6 +11,7 @@ services:
     hostname: rinha-gateway
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - shm:/dev/shm
     depends_on:
       - api01
       - api02
@@ -24,6 +20,12 @@ services:
     ports:
       - "8888:8888"
       - "9999:9999"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail http://localhost:9999/" ]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
     deploy:
       resources:
         limits:
@@ -36,17 +38,23 @@ services:
     container_name: rinha-api01
     command: ./producer
     environment:
-      - SOCKET_PAYMENT_IN=/tmp/sockets/payment.sock.1
-      - SOCKET_SUMMARY_IN=/tmp/sockets/summary.sock.1
-      - SOCKET_PAYMENT_OUT=/tmp/sockets/payment.sock
-      - SOCKET_SUMMARY_OUT=/tmp/sockets/summary.sock
+      - SOCKET_API=/dev/shm/sockets/go.sock.1
+      - SOCKET_PAYMENT=/dev/shm/sockets/payment.sock
+      - SOCKET_SUMMARY=/dev/shm/sockets/summary.sock
+    volumes:
+      - shm:/dev/shm
     networks:
       - backend
     ports:
       - "8081:8888"
     depends_on:
-      storage:
-        condition: service_healthy
+      - consumer
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /dev/shm/sockets/go.sock.1" ]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
     deploy:
       resources:
         limits:
@@ -58,15 +66,20 @@ services:
     hostname: api02
     container_name: rinha-api02
     command: ./producer
-    depends_on:
-      - consumer
     environment:
-      - SOCKET_PAYMENT_IN=/tmp/sockets/payment.sock.1
-      - SOCKET_SUMMARY_IN=/tmp/sockets/summary.sock.1
-      - SOCKET_PAYMENT_OUT=/tmp/sockets/payment.sock
-      - SOCKET_SUMMARY_OUT=/tmp/sockets/summary.sock
+      - SOCKET_API=/dev/shm/sockets/go.sock.2
+      - SOCKET_PAYMENT=/dev/shm/sockets/payment.sock
+      - SOCKET_SUMMARY=/dev/shm/sockets/summary.sock
+    volumes:
+      - shm:/dev/shm
     ports:
       - "8082:8888"
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /dev/shm/sockets/go.sock.2" ]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
 
   consumer:
     <<: *base
@@ -74,19 +87,34 @@ services:
     container_name: rinha-consumer
     command: ./consumer
     environment:
-      - SOCKET_PAYMENT_IN=/tmp/sockets/payment.sock
-      - SOCKET_SUMMARY_IN=/tmp/sockets/summary.sock
-      - SOCKET_PURGE_IN=/tmp/sockets/purge.sock
+      - SOCKET_PAYMENT=/dev/shm/sockets/payment.sock
+      - SOCKET_SUMMARY=/dev/shm/sockets/summary.sock
+      - SOCKET_PURGE=/dev/shm/sockets/purge.sock
+    volumes:
+      - shm:/dev/shm
     networks:
       - backend
       - payment-processor
     ports:
       - "8089:8888"
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /dev/shm/sockets/payment.sock && test -f /dev/shm/sockets/summary.sock && test -f /dev/shm/sockets/purge.sock" ]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
     deploy:
       resources:
         limits:
           cpus: '1.00'
           memory: 100M
+
+volumes:
+  shm:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
 
 networks:
   backend:

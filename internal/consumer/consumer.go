@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -123,66 +124,67 @@ func Run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ServerFromSocket("SOCKET_PAYMENT_IN",
-			func(ctx *fasthttp.RequestCtx) {
-				paymentChannel <- ctx.PostBody()
-				ctx.SetStatusCode(fasthttp.StatusAccepted)
-			})
+		socket := util.NewSocketFromEnv("SOCKET_PAYMENT")
+		defer os.Remove(socket)
+		log.Printf("Listen on %s", socket)
+		server.RunSocketServer(socket, func(ctx *fasthttp.RequestCtx) {
+			paymentChannel <- ctx.PostBody()
+			ctx.SetStatusCode(fasthttp.StatusAccepted)
+		})
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ServerFromSocket("SOCKET_SUMMARY_IN",
-			func(ctx *fasthttp.RequestCtx) {
-				fromStr := string(ctx.QueryArgs().Peek("from"))
-				toStr := string(ctx.QueryArgs().Peek("to"))
-				from := time.Unix(0, 0).UTC()
-				to := time.Now().UTC()
-				var err error
-				if fromStr != "" {
-					from, err = time.Parse(time.RFC3339, fromStr)
-					if err != nil {
-						ctx.Error("Invalid 'from' timestamp", fasthttp.StatusBadRequest)
-						return
-					}
-				}
-				if toStr != "" {
-					to, err = time.Parse(time.RFC3339, toStr)
-					if err != nil {
-						ctx.Error("Invalid 'to' timestamp", fasthttp.StatusBadRequest)
-						return
-					}
-				}
-				if from.After(to) {
-					ctx.Error("Invalid 'from' and 'to' timestamps", fasthttp.StatusBadRequest)
+		socket := util.NewSocketFromEnv("SOCKET_SUMMARY")
+		defer os.Remove(socket)
+		log.Printf("Listen on %s", socket)
+		server.RunSocketServer(socket, func(ctx *fasthttp.RequestCtx) {
+			fromStr := string(ctx.QueryArgs().Peek("from"))
+			toStr := string(ctx.QueryArgs().Peek("to"))
+			from := time.Unix(0, 0).UTC()
+			to := time.Now().UTC()
+			var err error
+			if fromStr != "" {
+				from, err = time.Parse(time.RFC3339, fromStr)
+				if err != nil {
+					ctx.Error("Invalid 'from' timestamp", fasthttp.StatusBadRequest)
 					return
 				}
-				body := consumer.GetSummary(from, to)
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.SetContentType("application/json")
-				ctx.SetBody(body)
-				ctx.SetStatusCode(fasthttp.StatusOK)
-			})
+			}
+			if toStr != "" {
+				to, err = time.Parse(time.RFC3339, toStr)
+				if err != nil {
+					ctx.Error("Invalid 'to' timestamp", fasthttp.StatusBadRequest)
+					return
+				}
+			}
+			if from.After(to) {
+				ctx.Error("Invalid 'from' and 'to' timestamps", fasthttp.StatusBadRequest)
+				return
+			}
+			body := consumer.GetSummary(from, to)
+			ctx.SetStatusCode(fasthttp.StatusOK)
+			ctx.SetContentType("application/json")
+			ctx.SetBody(body)
+			ctx.SetStatusCode(fasthttp.StatusOK)
+		})
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ServerFromSocket("SOCKET_PURGE_IN",
-			func(ctx *fasthttp.RequestCtx) {
-				ctx.SetStatusCode(fasthttp.StatusOK)
-			})
+		socket := util.NewSocketFromEnv("SOCKET_PURGE")
+		defer os.Remove(socket)
+		log.Printf("Listen on %s", socket)
+		server.RunSocketServer(socket, func(ctx *fasthttp.RequestCtx) {
+			ctx.WriteString("PURGE OK")
+			ctx.SetStatusCode(fasthttp.StatusOK)
+		})
 	}()
 
 	wg.Wait()
 	return nil
-}
-
-func ServerFromSocket(envVar string, handler func(ctx *fasthttp.RequestCtx)) error {
-	socket := util.NewSocketFromEnv(envVar)
-	log.Printf("Listen on %s", socket)
-	return server.RunSocketServer(socket, handler)
 }
 
 func selectProcessor(defaultHealth, fallbackHealth *types.ProcessorHealth) string {
