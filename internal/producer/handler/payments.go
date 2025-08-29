@@ -24,7 +24,7 @@ func PaymentHandler(ctx *fasthttp.RequestCtx, client *client.HttpClient) {
 	}
 	payment.RequestedAt = time.Now().UTC()
 	paymentJSON, _ := payment.MarshalJSON()
-	_, _, err := client.Post("http://unix/payments", paymentJSON)
+	_, _, err := client.PostTimeout("http://unix/payments", paymentJSON, 10*time.Second)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return

@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"log"
 	"math"
 	"sync"
 	"time"
@@ -69,7 +68,6 @@ func (db *PaymentStore) QuerySummary(from, to time.Time) types.SummaryServer {
 			summary.TotalRequests += len(bucket.Records)
 			summary.TotalAmount += bucket.Total
 		} else {
-			log.Println("Bucket time:", bucket.Records)
 			for _, record := range bucket.Records {
 				if record.RequestedAt.Before(from) {
 					continue
