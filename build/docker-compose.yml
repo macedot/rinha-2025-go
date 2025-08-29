@@ -3,6 +3,11 @@ x-service-templates:
     build:
       context: ../
       dockerfile: ./build/Dockerfile
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
 
 services:
   gateway:
