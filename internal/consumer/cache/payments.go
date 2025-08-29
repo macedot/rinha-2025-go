@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"log"
+	"math"
 	"sync"
 	"time"
 
@@ -10,26 +12,34 @@ import (
 const timeTruncate = time.Second
 
 type TimeBucket struct {
-	Records []*types.PaymentRecord
-	Total   int64
+	Records []*types.PaymentRequest
+	Total   float64
 }
 
 type PaymentStore struct {
-	mu      sync.Mutex
-	buckets map[int64]*TimeBucket // Key: Unix time (seconds)
+	mu        sync.Mutex
+	buckets   map[int64]*TimeBucket // Key: Unix time (seconds)
+	StartTime time.Time
 }
 
 func NewStore() *PaymentStore {
 	return &PaymentStore{
-		buckets: make(map[int64]*TimeBucket),
+		buckets:   make(map[int64]*TimeBucket),
+		StartTime: time.Now().Truncate(timeTruncate),
 	}
 }
 
-func (db *PaymentStore) AddRecord(record *types.PaymentRecord) {
+func (db *PaymentStore) AddRecord(record *types.PaymentRequest) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	bucketKey := record.RequestedAt.Truncate(timeTruncate).Unix()
-	bucket := db.buckets[bucketKey]
+	bucket, ok := db.buckets[bucketKey]
+	if !ok {
+		bucket = &TimeBucket{
+			Records: make([]*types.PaymentRequest, 0, 500),
+		}
+		db.buckets[bucketKey] = bucket
+	}
 	bucket.Records = append(db.buckets[bucketKey].Records, record)
 	bucket.Total += record.Amount
 }
@@ -39,19 +49,27 @@ func (db *PaymentStore) QuerySummary(from, to time.Time) types.SummaryServer {
 	defer db.mu.Unlock()
 	var summary struct {
 		TotalRequests int
-		TotalAmount   int64
+		TotalAmount   float64
 	}
 	fromT := from.Truncate(timeTruncate)
 	toT := to.Add(timeTruncate).Truncate(timeTruncate)
 	currentTime := fromT
+	if currentTime.Before(db.StartTime) {
+		currentTime = db.StartTime
+	}
 	for !currentTime.After(toT) {
 		bucket := db.buckets[currentTime.Unix()]
 		nextTime := currentTime.Add(timeTruncate)
+		if bucket == nil {
+			currentTime = nextTime
+			continue
+		}
 		if (!currentTime.Before(from)) &&
 			(nextTime.Before(to) || nextTime.Equal(to)) {
 			summary.TotalRequests += len(bucket.Records)
 			summary.TotalAmount += bucket.Total
 		} else {
+			log.Println("Bucket time:", bucket.Records)
 			for _, record := range bucket.Records {
 				if record.RequestedAt.Before(from) {
 					continue
@@ -67,7 +85,7 @@ func (db *PaymentStore) QuerySummary(from, to time.Time) types.SummaryServer {
 	}
 	return types.SummaryServer{
 		TotalRequests: summary.TotalRequests,
-		TotalAmount:   float64(summary.TotalAmount) / 100,
+		TotalAmount:   math.Round(summary.TotalAmount*100) / 100,
 	}
 }
 
@@ -75,6 +93,7 @@ func (db *PaymentStore) Clean() {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	db.buckets = make(map[int64]*TimeBucket)
+	db.StartTime = time.Now().Truncate(timeTruncate)
 }
 
 type MemoryDB struct {
@@ -89,11 +108,11 @@ func NewMemoryDB() *MemoryDB {
 	}
 }
 
-func (db *MemoryDB) AddRecordDefault(record *types.PaymentRecord) {
+func (db *MemoryDB) AddRecordDefault(record *types.PaymentRequest) {
 	db.Default.AddRecord(record)
 }
 
-func (db *MemoryDB) AddRecordFallback(record *types.PaymentRecord) {
+func (db *MemoryDB) AddRecordFallback(record *types.PaymentRequest) {
 	db.Fallback.AddRecord(record)
 }
 

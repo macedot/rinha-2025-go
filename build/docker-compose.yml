@@ -38,9 +38,9 @@ services:
     container_name: rinha-api01
     command: ./producer
     environment:
-      - SOCKET_API=/dev/shm/sockets/go.sock.1
-      - SOCKET_PAYMENT=/dev/shm/sockets/payment.sock
-      - SOCKET_SUMMARY=/dev/shm/sockets/summary.sock
+      - SOCKET_API=/dev/shm/go.sock.1
+      - SOCKET_PAYMENT=/dev/shm/payment.sock
+      - SOCKET_SUMMARY=/dev/shm/summary.sock
     volumes:
       - shm:/dev/shm
     networks:
@@ -50,7 +50,7 @@ services:
     depends_on:
       - consumer
     healthcheck:
-      test: [ "CMD-SHELL", "test -f /dev/shm/sockets/go.sock.1" ]
+      test: [ "CMD-SHELL", "test -f /dev/shm/go.sock.1" ]
       interval: 2s
       timeout: 2s
       retries: 5
@@ -67,15 +67,15 @@ services:
     container_name: rinha-api02
     command: ./producer
     environment:
-      - SOCKET_API=/dev/shm/sockets/go.sock.2
-      - SOCKET_PAYMENT=/dev/shm/sockets/payment.sock
-      - SOCKET_SUMMARY=/dev/shm/sockets/summary.sock
+      - SOCKET_API=/dev/shm/go.sock.2
+      - SOCKET_PAYMENT=/dev/shm/payment.sock
+      - SOCKET_SUMMARY=/dev/shm/summary.sock
     volumes:
       - shm:/dev/shm
     ports:
       - "8082:8888"
     healthcheck:
-      test: [ "CMD-SHELL", "test -f /dev/shm/sockets/go.sock.2" ]
+      test: [ "CMD-SHELL", "test -f /dev/shm/go.sock.2" ]
       interval: 2s
       timeout: 2s
       retries: 5
@@ -87,9 +87,9 @@ services:
     container_name: rinha-consumer
     command: ./consumer
     environment:
-      - SOCKET_PAYMENT=/dev/shm/sockets/payment.sock
-      - SOCKET_SUMMARY=/dev/shm/sockets/summary.sock
-      - SOCKET_PURGE=/dev/shm/sockets/purge.sock
+      - SOCKET_PAYMENT=/dev/shm/payment.sock
+      - SOCKET_SUMMARY=/dev/shm/summary.sock
+      - SOCKET_PURGE=/dev/shm/purge.sock
     volumes:
       - shm:/dev/shm
     networks:
@@ -98,7 +98,7 @@ services:
     ports:
       - "8089:8888"
     healthcheck:
-      test: [ "CMD-SHELL", "test -f /dev/shm/sockets/payment.sock && test -f /dev/shm/sockets/summary.sock && test -f /dev/shm/sockets/purge.sock" ]
+      test: [ "CMD-SHELL", "test -f /dev/shm/payment.sock && test -f /dev/shm/summary.sock && test -f /dev/shm/purge.sock" ]
       interval: 2s
       timeout: 2s
       retries: 5

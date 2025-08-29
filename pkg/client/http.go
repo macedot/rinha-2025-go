@@ -2,6 +2,8 @@ package client
 
 import (
 	"log"
+	"net"
+	"os"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -30,6 +32,27 @@ func (c *HttpClient) Init() *HttpClient {
 		// 	Concurrency:      500,
 		// 	DNSCacheDuration: time.Hour,
 		// }).Dial,
+	}
+	return c
+}
+
+func (c *HttpClient) InitSocket(unixSocketPath string) *HttpClient {
+	if _, err := os.Stat(unixSocketPath); os.IsNotExist(err) {
+		log.Fatalf("UNIX socket %s does not exist", unixSocketPath)
+	}
+	c.client = &fasthttp.Client{
+		// MaxConnsPerHost:               500,
+		// ReadTimeout:                   700 * time.Millisecond,
+		// WriteTimeout:                  700 * time.Millisecond,
+		// ReadBufferSize:                1024,
+		// WriteBufferSize:               1024,
+		// MaxIdleConnDuration:           10 * time.Second,
+		NoDefaultUserAgentHeader:      true,
+		DisableHeaderNamesNormalizing: true,
+		DisablePathNormalizing:        true,
+		Dial: func(_ string) (net.Conn, error) {
+			return net.Dial("unix", unixSocketPath)
+		},
 	}
 	return c
 }

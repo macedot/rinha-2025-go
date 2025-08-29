@@ -8,7 +8,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func PaymentHandler(ctx *fasthttp.RequestCtx, client *client.SocketClient) {
+func PaymentHandler(ctx *fasthttp.RequestCtx, client *client.HttpClient) {
 	if !ctx.IsPost() {
 		ctx.Error("Method not allowed", fasthttp.StatusMethodNotAllowed)
 		return
@@ -24,7 +24,7 @@ func PaymentHandler(ctx *fasthttp.RequestCtx, client *client.SocketClient) {
 	}
 	payment.RequestedAt = time.Now().UTC()
 	paymentJSON, _ := payment.MarshalJSON()
-	_, err := client.Post("/payments", paymentJSON)
+	_, _, err := client.Post("http://unix/payments", paymentJSON)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return

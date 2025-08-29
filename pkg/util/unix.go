@@ -10,28 +10,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func NewSocketFromEnv(socketEnv string) string {
-	return NewSocketFile(GetEnv(socketEnv))
-}
-
-func NewSocketFile(socketPath string) string {
-	if err := os.MkdirAll(filepath.Dir(socketPath), 0777); err != nil {
-		log.Fatalf("Failed to create socket directory: %v", err)
-	}
-	if err := os.RemoveAll(socketPath); err != nil {
-		log.Fatalf("Failed to remove existing socket: %v", err)
-	}
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		log.Fatalf("Failed to listen on Unix socket: %v", err)
-	}
-	listener.Close()
-	if err := os.RemoveAll(socketPath); err != nil {
-		log.Fatalf("Failed to remove existing socket: %v", err)
-	}
-	return socketPath
-}
-
 func NewListenUnix(socketPath string) net.Listener {
 	if err := os.MkdirAll(filepath.Dir(socketPath), 0777); err != nil {
 		log.Fatalf("Failed to create socket directory: %v", err)

@@ -70,10 +70,8 @@ func (c *Consumer) processPayment(payload []byte) {
 	}
 
 	endpoint := "http://payment-processor-default:8080/payments"
-	//key := "default_payments"
 	if processor != "default" {
 		endpoint = "http://payment-processor-fallback:8080/payments"
-		//	key = "fallback_payments"
 	}
 
 	var payment types.PaymentRequest
@@ -86,10 +84,16 @@ func (c *Consumer) processPayment(payload []byte) {
 		c.addToRetryQueue(payload)
 		return
 	}
+
 	// err = c.Redis.ZAdd(context.Background(), key, redis.Z{
 	// 	Score:  float64(payment.RequestedAt.UnixNano()),
 	// 	Member: payload,
 	// }).Err()
+	if processor == "default" {
+		c.Payments.AddRecordDefault(&payment)
+	} else {
+		c.Payments.AddRecordFallback(&payment)
+	}
 }
 
 func (c *Consumer) markProcessorAsFailing(proc string) {
@@ -124,7 +128,7 @@ func Run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		socket := util.NewSocketFromEnv("SOCKET_PAYMENT")
+		socket := util.GetEnv("SOCKET_PAYMENT")
 		defer os.Remove(socket)
 		log.Printf("Listen on %s", socket)
 		server.RunSocketServer(socket, func(ctx *fasthttp.RequestCtx) {
@@ -136,7 +140,7 @@ func Run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		socket := util.NewSocketFromEnv("SOCKET_SUMMARY")
+		socket := util.GetEnv("SOCKET_SUMMARY")
 		defer os.Remove(socket)
 		log.Printf("Listen on %s", socket)
 		server.RunSocketServer(socket, func(ctx *fasthttp.RequestCtx) {
@@ -174,10 +178,11 @@ func Run() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		socket := util.NewSocketFromEnv("SOCKET_PURGE")
+		socket := util.GetEnv("SOCKET_PURGE")
 		defer os.Remove(socket)
 		log.Printf("Listen on %s", socket)
 		server.RunSocketServer(socket, func(ctx *fasthttp.RequestCtx) {
+			consumer.Payments.Clean()
 			ctx.WriteString("PURGE OK")
 			ctx.SetStatusCode(fasthttp.StatusOK)
 		})

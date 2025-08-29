@@ -12,14 +12,14 @@ import (
 )
 
 func Run() error {
-	requestSocket := util.NewSocketFromEnv("SOCKET_API")
+	requestSocket := util.GetEnv("SOCKET_API")
 	defer os.Remove(requestSocket)
 
-	paymentSocket := util.NewSocketFromEnv("SOCKET_PAYMENT")
-	paymentClient := client.NewSocketClient().Init(paymentSocket)
+	paymentSocket := util.GetEnv("SOCKET_PAYMENT")
+	paymentClient := client.NewHttpClient().InitSocket(paymentSocket)
 
-	summarySocket := util.NewSocketFromEnv("SOCKET_SUMMARY")
-	summaryClient := client.NewSocketClient().Init(summarySocket)
+	summarySocket := util.GetEnv("SOCKET_SUMMARY")
+	summaryClient := client.NewHttpClient().InitSocket(summarySocket)
 
 	log.Printf("Listen on %s", requestSocket)
 	return server.RunSocketServer(requestSocket,
@@ -30,7 +30,7 @@ func Run() error {
 			case "/payments-summary":
 				handler.SummaryHandler(ctx, summaryClient)
 			default:
-				ctx.Error("Not Found", fasthttp.StatusNotFound)
+				ctx.Error("Not Found - producer", fasthttp.StatusNotFound)
 			}
 		})
 }
