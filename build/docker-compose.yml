@@ -1,121 +1,125 @@
 x-service-templates:
-  base: &base
+  api: &api
     build:
       context: ../
       dockerfile: ./build/Dockerfile
-    volumes:
-      - sockets:/sockets:rw
+    #image: laurentinodeev/rinha-2025-go:v1
+    depends_on:
+      - storage
     networks:
-      - backend
+      - rinha
       - payment-processor
+    volumes:
+      - shm:/dev/shm
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: '50MB'
 
 services:
   gateway:
-    <<: *base
+    image: haproxy:alpine
     container_name: rinha-gateway
-    hostname: rinha-gateway
-    command: ./gateway
-    environment:
-      - SERVICES_SOCKETS=/sockets/go.sock.1,/sockets/go.sock.2,/sockets/go.sock.3
     volumes:
-      - sockets:/sockets:rw
+      - shm:/dev/shm
+      - ../config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - api01
       - api02
       - api03
     networks:
-      - backend
+      - rinha
     ports:
       - "9999:9999"
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
     deploy:
       resources:
         limits:
           cpus: '0.10'
           memory: '50MB'
-
-  # gateway:
-  #   image: haproxy:alpine
-  #   container_name: rinha-gateway
-  #   hostname: rinha-gateway
-  #   volumes:
-  #     - sockets:/sockets:rw
-  #     - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-  #   depends_on:
-  #     - api01
-  #     - api02
-  #     - api03
-  #   networks:
-  #     - backend
-  #   ports:
-  #     - "9999:9999"
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '0.10'
-  #         memory: '50MB'
 
   api01: &api
-    <<: *base
-    hostname: api01
+    <<: *api
     container_name: rinha-api01
-    command: ./service
     environment:
-      - SERVICE_SOCKET=/sockets/go.sock.1
-      - STORAGE_SOCKET=/sockets/storage.sock
-    depends_on:
-      - storage
-    deploy:
-      resources:
-        limits:
-          cpus: '0.42'
-          memory: '50MB'
-
+      - SERVICE_SOCKET=/dev/shm/go.sock.1
   api02:
     <<: *api
-    hostname: api02
     container_name: rinha-api02
-    command: ./service
     environment:
-      - SERVICE_SOCKET=/sockets/go.sock.2
-      - STORAGE_SOCKET=/sockets/storage.sock
-
+      - SERVICE_SOCKET=/dev/shm/go.sock.2
   api03:
     <<: *api
-    hostname: api03
     container_name: rinha-api03
-    command: ./service
     environment:
-      - SERVICE_SOCKET=/sockets/go.sock.3
-      - STORAGE_SOCKET=/sockets/storage.sock
+      - SERVICE_SOCKET=/dev/shm/go.sock.3
 
   storage:
-    <<: *base
-    hostname: storage
+    image: postgres:17-alpine
     container_name: rinha-storage
-    command: ./storage
     environment:
-      - STORAGE_SOCKET=/sockets/storage.sock
+      POSTGRES_PASSWORD: rinha
+      POSTGRES_USER: rinha
+      POSTGRES_DB: rinha
+    ports:
+      - 1010:5432
+    volumes:
+      - ../config/postgresql.conf:/etc/postgresql.conf:ro
+      - ../config/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: [ "postgres", "-c", "config_file=/etc/postgresql.conf" ]
+    networks:
+      - rinha
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rinha -d rinha" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 2s
+        max_attempts: 10
+        window: 5s
       resources:
         limits:
-          cpus: '0.10'
-          memory: '50MB'
-# SOON!
+          cpus: "0.5"
+          memory: "190MB"
+
+volumes:
+  postgres-data:
+  shm:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
+networks:
+  rinha:
+  payment-processor:
+    external: true
+
 # prometheus:
-#   image: prom/prometheus:v2.54.1
+#   image: prom/prometheus:latest
 #   volumes:
 #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
 #     - prometheus:/prometheus
 #   ports:
 #     - "9090:9090"
 #   networks:
-#     - backend
-
-volumes:
-  sockets:
-
-
-networks:
-  backend:
-  payment-processor:
-    external: true
+#     - rinha
