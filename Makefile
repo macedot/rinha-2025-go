@@ -11,7 +11,12 @@ VERSION := $(shell git rev-parse --short HEAD)
 
 # Default target
 .PHONY: all
-all: build up logs
+all: client build up logs
+
+.PHONY: client
+client:
+	@echo "Running Client app..."
+	docker-compose -f ./test/payment-processor/docker-compose.yml up -d
 
 # Build the Docker images
 .PHONY: build

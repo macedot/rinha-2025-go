@@ -16,7 +16,8 @@ type PaymentDB struct {
 }
 
 func NewPaymentDB(ctx context.Context) (*PaymentDB, error) {
-	cfg, _ := pgxpool.ParseConfig(util.GetEnvOr("DATABASE_URL", "postgresql://rinha:rinha@postgres:5432/rinha"))
+	// postgresql://pg:secret@exchange_rate:5432/exchange?sslmode=disable"
+	cfg, _ := pgxpool.ParseConfig(util.GetEnvOr("DATABASE_URL", "postgresql://postgres:postgres@postgres:5432/postgres?sslmode=disable"))
 	maxConns, _ := strconv.Atoi(util.GetEnvOr("PG_MAX_CONNS", "25"))
 	cfg.MaxConns = int32(maxConns)
 	cfg.MaxConnLifetime = time.Hour

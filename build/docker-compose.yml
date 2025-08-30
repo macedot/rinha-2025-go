@@ -5,7 +5,8 @@ x-service-templates:
       dockerfile: ./build/Dockerfile
     #image: laurentinodeev/rinha-2025-go:v1
     depends_on:
-      - storage
+      storage:
+        condition: service_healthy
     networks:
       - rinha
       - payment-processor
@@ -19,7 +20,7 @@ x-service-templates:
     deploy:
       resources:
         limits:
-          cpus: '0.10'
+          cpus: '0.20'
           memory: '50MB'
 
 services:
@@ -27,16 +28,20 @@ services:
     image: haproxy:alpine
     container_name: rinha-gateway
     volumes:
-      - shm:/dev/shm
       - ../config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - shm:/dev/shm
     depends_on:
-      - api01
-      - api02
-      - api03
+      api01:
+        condition: service_healthy
+      api02:
+        condition: service_healthy
+      api03:
+        condition: service_healthy
     networks:
       - rinha
     ports:
       - "9999:9999"
+      - "8888:8888"
     ulimits:
       nproc: 1000000
       nofile:
@@ -48,43 +53,65 @@ services:
           cpus: '0.10'
           memory: '50MB'
 
-  api01: &api
+  api01:
     <<: *api
     container_name: rinha-api01
     environment:
-      - SERVICE_SOCKET=/dev/shm/go.sock.1
+      - SOCKET_PATH=/dev/shm/go.1.sock
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /dev/shm/go.1.sock || exit 1" ]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+      start_period: 1s
+
   api02:
     <<: *api
     container_name: rinha-api02
     environment:
-      - SERVICE_SOCKET=/dev/shm/go.sock.2
+      - SOCKET_PATH=/dev/shm/go.2.sock
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /dev/shm/go.2.sock || exit 1" ]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+      start_period: 1s
+
   api03:
     <<: *api
     container_name: rinha-api03
     environment:
-      - SERVICE_SOCKET=/dev/shm/go.sock.3
+      - SOCKET_PATH=/dev/shm/go.3.sock
+    healthcheck:
+      test: [ "CMD-SHELL", "test -f /dev/shm/go.3.sock || exit 1" ]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+      start_period: 1s
 
   storage:
     image: postgres:17-alpine
     container_name: rinha-storage
     environment:
-      POSTGRES_PASSWORD: rinha
-      POSTGRES_USER: rinha
-      POSTGRES_DB: rinha
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
     ports:
       - 1010:5432
     volumes:
       - ../config/postgresql.conf:/etc/postgresql.conf:ro
       - ../config/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres:/var/lib/postgresql/data
+      - shm:/dev/shm
     command: [ "postgres", "-c", "config_file=/etc/postgresql.conf" ]
     networks:
       - rinha
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U rinha -d rinha" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
       interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 5s
     ulimits:
       nproc: 1000000
       nofile:
@@ -98,28 +125,30 @@ services:
         window: 5s
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.80"
           memory: "190MB"
 
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ../config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - rinha
+
 volumes:
-  postgres-data:
+  postgres:
+  prometheus:
   shm:
     driver: local
     driver_opts:
       type: tmpfs
       device: tmpfs
+      o: mode=1777
 
 networks:
   rinha:
   payment-processor:
     external: true
-
-# prometheus:
-#   image: prom/prometheus:latest
-#   volumes:
-#     - ./prometheus.yml:/etc/prometheus/prometheus.yml
-#     - prometheus:/prometheus
-#   ports:
-#     - "9090:9090"
-#   networks:
-#     - rinha
