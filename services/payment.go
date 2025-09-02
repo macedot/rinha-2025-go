@@ -10,7 +10,6 @@ import (
 )
 
 func EnqueuePayment(payment *models.Payment, queue *Queue) {
-	payment.Timestamp = time.Now().UTC()
 	queue.Enqueue(payment)
 }
 
@@ -32,9 +31,11 @@ func ProcessPayment(payment *models.Payment) error {
 
 func forwardPayment(instance *config.Service, payment *models.Payment, payload []byte) error {
 	client := HttpClientInstance()
+	db := database.RedisInstance()
+	payment.Timestamp = time.Now().UTC()
 	if err := client.Post(instance.URL+"/payments", payload); err != nil {
 		return err
 	}
-	db := database.RedisInstance()
-	return db.SavePayment(instance, payment)
+	db.SavePayment(instance, payment)
+	return nil
 }

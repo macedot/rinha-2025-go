@@ -8,14 +8,11 @@ import (
 	"rinha-2025/server"
 	"rinha-2025/services"
 	"runtime"
-	"runtime/debug"
 	"time"
 )
 
 func main() {
 	runtime.GOMAXPROCS(1)
-	debug.SetGCPercent(-1)
-	debug.SetMemoryLimit(90 * 1024 * 1024)
 
 	cfg := config.ConfigInstance().Init()
 	services.HttpClientInstance().Init()
@@ -48,15 +45,5 @@ func main() {
 		}
 	}()
 
-	log.Println("Server type:", cfg.ServerType)
-	switch cfg.ServerType {
-	case "gear":
-		log.Fatal(server.RunGear(cfg, queue))
-	case "fasthttp":
-		log.Fatal(server.RunFastHTTP(cfg, queue))
-	case "silverlining":
-		log.Fatal(server.RunSilverlining(cfg, queue))
-	}
-
-	log.Fatal(server.RunEcho(cfg, queue))
+	log.Fatal(server.RunSilverlining(cfg, queue))
 }

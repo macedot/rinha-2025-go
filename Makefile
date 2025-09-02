@@ -25,3 +25,24 @@ push:
 FORCE: ;
 
 .PHONY : docker run build push prod
+
+ci:
+	K6_WEB_DASHBOARD_OPEN=false \
+	K6_WEB_DASHBOARD=true \
+	K6_WEB_DASHBOARD_EXPORT='report.html' \
+	K6_WEB_DASHBOARD_PERIOD=2s \
+	k6 run ./test/rinha.js
+
+ci-m:
+	K6_WEB_DASHBOARD_OPEN=false \
+	K6_WEB_DASHBOARD=true \
+	K6_WEB_DASHBOARD_EXPORT='report.html' \
+	K6_WEB_DASHBOARD_PERIOD=2s \
+	k6 run -e MAX_REQUESTS=4000 ./test/rinha-final.js
+
+ci-f:
+	K6_WEB_DASHBOARD_OPEN=false \
+	K6_WEB_DASHBOARD=true \
+	K6_WEB_DASHBOARD_EXPORT='report.html' \
+	K6_WEB_DASHBOARD_PERIOD=2s \
+	k6 run ./test/rinha-final.js

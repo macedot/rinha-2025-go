@@ -25,8 +25,6 @@ type Service struct {
 
 type Config struct {
 	DebugMode              bool
-	ServerType             string
-	ServerURL              string
 	ServerSocket           string
 	RedisURL               string
 	Instances              []Service
@@ -119,9 +117,7 @@ func (c *Config) Init() *Config {
 		c.Services = append(c.Services, service)
 		log.Print("Service:", service)
 	}
-	c.ServerType = utils.GetEnv("SERVER_TYPE", "")
 	c.ServerSocket = utils.GetEnv("SERVER_SOCKET", "")
-	c.ServerURL = utils.GetEnv("SERVER_URL")
 	c.RedisURL = utils.GetEnv("REDIS_URL")
 	c.ServiceRefreshInterval = utils.GetEnvDuration("SERVICE_REFRESH_INTERVAL", "5s")
 	if c.DebugMode {

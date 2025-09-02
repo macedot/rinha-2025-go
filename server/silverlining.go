@@ -57,10 +57,6 @@ func RunSilverlining(cfg *config.Config, queue *services.Queue) error {
 			return
 
 		case "/purge-payments":
-			// if c.Method() != silverlining.MethodPOST {
-			// 	c.WriteFullBodyString(405, "Method not allowed")
-			// 	return
-			// }
 			if err := services.PurgePayments(); err != nil {
 				c.WriteFullBodyString(500, err.Error())
 				return
@@ -73,11 +69,7 @@ func RunSilverlining(cfg *config.Config, queue *services.Queue) error {
 		}
 	}
 
-	if cfg.ServerSocket != "" {
-		log.Printf("Listening on %s", cfg.ServerSocket)
-		listener := utils.NewListenUnix(cfg.ServerSocket)
-		return ServeListener(listener, handler)
-	}
-
-	return silverlining.ListenAndServe(cfg.ServerURL, handler)
+	log.Printf("Listening on %s", cfg.ServerSocket)
+	listener := utils.NewListenUnix(cfg.ServerSocket)
+	return ServeListener(listener, handler)
 }

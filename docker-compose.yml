@@ -1,7 +1,8 @@
 name: rinha-2025
 
-x-api_template: &api_template
+x-api_template:
   #image: docker.io/macedot/rinha-2025:latest
+  &api_template
   build: .
   env_file:
     - path: .env
@@ -24,18 +25,16 @@ services:
     <<: *api_template
     hostname: api01
     environment:
-      - SERVER_TYPE=$SERVER_TYPE
       - SERVER_SOCKET=/sockets/go.sock.1
 
   api02:
     <<: *api_template
     hostname: api02
     environment:
-      - SERVER_TYPE=$SERVER_TYPE
       - SERVER_SOCKET=/sockets/go.sock.2
 
   gateway:
-    image: haproxy:3.2.3-alpine
+    image: haproxy:latest
     hostname: rinha-gateway
     volumes:
       - sockets:/sockets:rw
@@ -60,7 +59,7 @@ services:
       - backend
     ports:
       - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    command: [ "redis-server", "--appendonly", "yes", "--appendfsync", "everysec" ]
     deploy:
       resources:
         limits:
