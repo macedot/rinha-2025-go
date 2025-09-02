@@ -48,46 +48,35 @@ func GetInstancesCache() []config.Service {
 	return instances
 }
 
-func SetInstancesCache(instances []config.Service) error {
-	bytes, err := oj.Marshal(instances)
+func SetInstancesCache(activeInstance *config.Service) error {
+	bytes, err := oj.Marshal(activeInstance)
 	if err == nil {
 		redis := database.RedisInstance()
 		err = redis.SetString(HEALTH_REDIS_KEY, HEALTH_REDIS_INSTANCES, string(bytes))
 	}
 	if err != nil {
-		log.Print("SetInstancesCache:", err, instances)
+		log.Print("SetInstancesCache:", err, activeInstance)
 	}
 	return err
 }
 
-func ResetInstancesCache(instances []config.Service) error {
+func ResetInstancesCache(activeInstance *config.Service) error {
 	cache := GetInstancesCache()
-	if len(cache) == 0 {
-		return SetInstancesCache(instances)
+	if cache == nil {
+		return SetInstancesCache(activeInstance)
 	}
 	return nil
 }
 
 func RefreshServiceStatus(cfg *config.Config) {
-	currInstances := cfg.GetInstances() //GetInstancesCache()
+	currInstances := cfg.GetActiveService()
 	currServices := cfg.GetServices()
 	updateServicesHealth(currServices)
-	cfg.UpdateServices(currServices).UpdateInstances()
-	instances := cfg.GetInstances()
-	SetInstancesCache(instances)
-	if !reflect.DeepEqual(currInstances, instances) {
-		type Result struct {
-			Fee   float64
-			Delay uint32
-		}
-		var arr []Result
-		for _, instance := range instances {
-			arr = append(arr, Result{
-				Fee:   instance.Fee,
-				Delay: instance.MinResponseTime,
-			})
-		}
-		log.Print("RefreshServiceStatus:", arr)
+	cfg.UpdateServices(currServices).UpdateActiveService()
+	activeInstance := cfg.GetActiveService()
+	SetInstancesCache(activeInstance)
+	if !reflect.DeepEqual(currInstances, activeInstance) {
+		log.Print("RefreshServiceStatus:", activeInstance)
 	}
 }
 
@@ -97,7 +86,7 @@ func updateServicesHealth(services []config.Service) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			health := getServiceHealth(service)
+			health := getServiceHealth(&service)
 			services[i].Failing = health.Failing
 			services[i].MinResponseTime = health.MinResponseTime
 		}()
@@ -105,7 +94,7 @@ func updateServicesHealth(services []config.Service) {
 	wg.Wait()
 }
 
-func getServiceHealth(service config.Service) models.HealthResponse {
+func getServiceHealth(service *config.Service) models.HealthResponse {
 	health := models.HealthResponse{Failing: true}
 	client := HttpClientInstance()
 	statusCode, body := client.Get(service.URL + "/payments/service-health")

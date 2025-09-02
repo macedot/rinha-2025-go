@@ -27,7 +27,7 @@ type Config struct {
 	DebugMode              bool
 	ServerSocket           string
 	RedisURL               string
-	Instances              []Service
+	ActiveService          *Service
 	Services               []Service
 	ServiceRefreshInterval time.Duration
 }
@@ -46,8 +46,8 @@ func (c *Config) GetServices() []Service {
 	return c.Services
 }
 
-func (c *Config) GetInstances() []Service {
-	return c.Instances
+func (c *Config) GetActiveService() *Service {
+	return c.ActiveService
 }
 
 func (c *Config) UpdateServices(services []Service) *Config {
@@ -57,33 +57,33 @@ func (c *Config) UpdateServices(services []Service) *Config {
 
 // https://github.com/JosineyJr/rdb25_02/blob/ae8517f398e4261890bbfe0bd57ca986642a34e5/internal/routing/router.go#L121
 // https://github.com/zanfranceschi/rinha-de-backend-2025/blob/main/participantes/andersongomes001/partial-results.json
-func (c *Config) UpdateInstances() *Config {
-	c.Instances = nil
+func (c *Config) UpdateActiveService() *Config {
+	c.ActiveService = nil
 	if len(c.Services) == 1 {
 		if c.Services[0].Failing {
-			return c
+			return nil
 		}
-		c.Instances = append(c.Instances, c.Services[0])
-		return c
-	}
-	if c.Services[0].Failing && c.Services[1].Failing {
+		c.ActiveService = &c.Services[0]
 		return c
 	}
 	if c.Services[0].Failing {
-		c.Instances = append(c.Instances, c.Services[1])
+		if c.Services[1].Failing {
+			return c
+		}
+		c.ActiveService = &c.Services[1]
 		return c
 	}
-	if c.Services[1].Failing {
-		c.Instances = append(c.Instances, c.Services[0])
+	dl := float32(c.Services[0].MinResponseTime)
+	if dl <= 100 || c.Services[1].Failing {
+		c.ActiveService = &c.Services[0]
 		return c
 	}
-	dl := c.Services[0].MinResponseTime
-	fl := c.Services[1].MinResponseTime
-	if 0 < fl && fl <= 20 && (3*fl) < dl {
-		c.Instances = append(c.Instances, c.Services[1])
+	fl := float32(c.Services[1].MinResponseTime)
+	if dl-fl < 1000 {
+		c.ActiveService = &c.Services[0]
 		return c
 	}
-	c.Instances = append(c.Instances, c.Services[0])
+	c.ActiveService = &c.Services[1]
 	return c
 }
 
