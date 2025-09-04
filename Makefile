@@ -50,7 +50,7 @@ logs:
 .PHONY: image
 image:
 	@echo "🐳 Build da imagem Docker..."
-	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
+	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest -f ./build/Dockerfile .
 
 # Push the Docker image to Docker Hub
 .PHONY: push
