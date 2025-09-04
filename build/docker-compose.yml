@@ -22,8 +22,8 @@ x-api_template:
   deploy:
     resources:
       limits:
-        cpus: "0.50"
-        memory: "100MB"
+        cpus: "0.25"
+        memory: "25MB"
 
 services:
   api01:
@@ -31,7 +31,7 @@ services:
     hostname: api01
     container_name: rinha-api01
     environment:
-      NUM_WORKERS: 50
+      NUM_WORKERS: 10
       SERVER_SOCKET: /sockets/go.sock.1
       REDIS_SOCKET: /sockets/redis.sock
       SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
@@ -41,8 +41,28 @@ services:
     hostname: api02
     container_name: rinha-api02
     environment:
-      NUM_WORKERS: 50
+      NUM_WORKERS: 10
       SERVER_SOCKET: /sockets/go.sock.2
+      REDIS_SOCKET: /sockets/redis.sock
+      SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
+
+  api03:
+    <<: *api_template
+    hostname: api03
+    container_name: rinha-api03
+    environment:
+      NUM_WORKERS: 10
+      SERVER_SOCKET: /sockets/go.sock.3
+      REDIS_SOCKET: /sockets/redis.sock
+      SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
+
+  api04:
+    <<: *api_template
+    hostname: api04
+    container_name: rinha-api04
+    environment:
+      NUM_WORKERS: 10
+      SERVER_SOCKET: /sockets/go.sock.4
       REDIS_SOCKET: /sockets/redis.sock
       SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
 
@@ -56,6 +76,8 @@ services:
     depends_on:
       - api01
       - api02
+      - api03
+      - api04
     networks:
       - backend
     ports:
