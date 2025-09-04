@@ -6,6 +6,7 @@ import Big from "https://cdn.jsdelivr.net/npm/big.js@7.0.1/big.min.js";
 import { Counter } from "k6/metrics";
 import { Httpx } from 'https://jslib.k6.io/httpx/0.1.0/index.js';
 
+const summaryJsonFileName = __ENV.SUMMARY_FILE ?? `./summary/partial-results.json`;
 const MAX_REQUESTS = __ENV.MAX_REQUESTS ?? 550;
 const initialToken = '123';
 export const token = __ENV.TOKEN ?? initialToken;
@@ -469,12 +470,10 @@ export function handleSummary(data) {
     stdout: textSummary(data),
   };
 
-  const participant = __ENV.PARTICIPANT;
-  let summaryJsonFileName = `../participantes/${participant}/partial-results.json`
-
-  if (participant == undefined) {
-    summaryJsonFileName = `./summary/partial-results.json`
-  }
+  // const participant = __ENV.PARTICIPANT;
+  // if (participant != undefined) {
+  //   summaryJsonFileName = `../participantes/${participant}/partial-results.json`
+  // }
 
   result[summaryJsonFileName] = JSON.stringify(custom_data, null, 2);
 

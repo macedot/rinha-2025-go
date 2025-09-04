@@ -1,0 +1,105 @@
+name: rinha-2025
+
+x-api_template:
+  #image: docker.io/macedot/rinha-2025:latest
+  &api_template
+  build:
+    context: ../
+    dockerfile: ./build/Dockerfile
+  volumes:
+    - sockets:/sockets:rw
+  depends_on:
+    redis:
+      condition: service_healthy
+  networks:
+    - backend
+    - payment-processor
+  ulimits:
+    nproc: 1000000
+    nofile:
+      soft: 1000000
+      hard: 1000000
+  deploy:
+    resources:
+      limits:
+        cpus: "0.50"
+        memory: "100MB"
+
+services:
+  api01:
+    <<: *api_template
+    hostname: api01
+    container_name: rinha-api01
+    environment:
+      NUM_WORKERS: 50
+      SERVER_SOCKET: /sockets/go.sock.1
+      REDIS_SOCKET: /sockets/redis.sock
+      SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
+
+  api02:
+    <<: *api_template
+    hostname: api02
+    container_name: rinha-api02
+    environment:
+      NUM_WORKERS: 50
+      SERVER_SOCKET: /sockets/go.sock.2
+      REDIS_SOCKET: /sockets/redis.sock
+      SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
+
+  haproxy:
+    image: haproxy:latest
+    hostname: rinha-haproxy
+    container_name: rinha-haproxy
+    volumes:
+      - ../config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - sockets:/sockets:rw
+    depends_on:
+      - api01
+      - api02
+    networks:
+      - backend
+    ports:
+      - "9999:9999"
+      - "8888:8888"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: "75MB"
+
+  redis:
+    image: redis:8-alpine
+    hostname: redis
+    container_name: rinha-redis
+    command: [ "redis-server", "/tmp/docker/redis.conf", "--appendonly", "yes", "--appendfsync", "everysec" ]
+    volumes:
+      - ../config/redis.conf:/tmp/docker/redis.conf:ro
+      - sockets:/sockets:rw
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      start_period: 1s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.30"
+          memory: "75MB"
+
+volumes:
+  sockets:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=16m,mode=1777
+
+networks:
+  backend:
+  payment-processor:
+    external: true

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"rinha-2025/utils"
+	"rinha-2025-go/pkg/utils"
 	"time"
 
 	"github.com/ohler55/ojg/oj"
@@ -21,33 +21,43 @@ type Service struct {
 	Timeout         time.Duration
 	KeyAmount       string
 	KeyTime         string
+	LastUpdate      time.Time
+}
+
+type ServiceMode int
+
+const (
+	None ServiceMode = iota - 1
+	Default
+	Fallback
+)
+
+type ServiceStatus struct {
+	Mode       ServiceMode
+	LastUpdate time.Time
 }
 
 type Config struct {
-	DebugMode              bool
 	ServerSocket           string
-	RedisURL               string
-	ActiveService          *Service
+	RedisSocket            string
+	ActiveService          ServiceStatus
 	Services               []Service
 	ServiceRefreshInterval time.Duration
+	NumWorkers             int
 }
 
-type ConfigCache struct {
-	Services []Service
-}
-
-var config Config
+var appConfig Config
 
 func ConfigInstance() *Config {
-	return &config
+	return &appConfig
 }
 
 func (c *Config) GetServices() []Service {
 	return c.Services
 }
 
-func (c *Config) GetActiveService() *Service {
-	return c.ActiveService
+func (c *Config) GetActiveService() *ServiceStatus {
+	return &c.ActiveService
 }
 
 func (c *Config) UpdateServices(services []Service) *Config {
@@ -57,38 +67,37 @@ func (c *Config) UpdateServices(services []Service) *Config {
 
 // https://github.com/JosineyJr/rdb25_02/blob/ae8517f398e4261890bbfe0bd57ca986642a34e5/internal/routing/router.go#L121
 // https://github.com/zanfranceschi/rinha-de-backend-2025/blob/main/participantes/andersongomes001/partial-results.json
-func (c *Config) UpdateActiveService() *Config {
-	c.ActiveService = nil
+func (c *Config) UpdateActiveInstance() *Config {
+	c.ActiveService = ServiceStatus{Mode: None}
 	if len(c.Services) == 1 {
 		if c.Services[0].Failing {
-			return nil
+			return c
 		}
-		c.ActiveService = &c.Services[0]
+		c.ActiveService.Mode = Default
 		return c
 	}
 	if c.Services[0].Failing {
 		if c.Services[1].Failing {
 			return c
 		}
-		c.ActiveService = &c.Services[1]
+		c.ActiveService.Mode = Fallback
 		return c
 	}
 	dl := float32(c.Services[0].MinResponseTime)
 	if dl <= 100 || c.Services[1].Failing {
-		c.ActiveService = &c.Services[0]
+		c.ActiveService.Mode = Default
 		return c
 	}
 	fl := float32(c.Services[1].MinResponseTime)
 	if dl-fl < 1000 {
-		c.ActiveService = &c.Services[0]
+		c.ActiveService.Mode = Default
 		return c
 	}
-	c.ActiveService = &c.Services[1]
+	c.ActiveService.Mode = Fallback
 	return c
 }
 
 func (c *Config) Init() *Config {
-	c.DebugMode = utils.GetEnvBool("API_DEBUG_MODE", "false")
 	var services []Service
 	if envServices := os.Getenv("SERVICES"); envServices != "" {
 		if err := oj.Unmarshal([]byte(envServices), &services); err != nil {
@@ -111,17 +120,15 @@ func (c *Config) Init() *Config {
 		//service.Fee = 0.0
 		service.Failing = false
 		service.MinResponseTime = 0
-		service.Timeout = 10 * time.Second
+		service.Timeout = 1 * time.Second
 		service.KeyAmount = fmt.Sprintf("summary:%s:data", service.Table)
 		service.KeyTime = fmt.Sprintf("summary:%s:history", service.Table)
 		c.Services = append(c.Services, service)
 		log.Print("Service:", service)
 	}
 	c.ServerSocket = utils.GetEnv("SERVER_SOCKET", "")
-	c.RedisURL = utils.GetEnv("REDIS_URL")
-	c.ServiceRefreshInterval = utils.GetEnvDuration("SERVICE_REFRESH_INTERVAL", "5s")
-	if c.DebugMode {
-		fmt.Printf("\n%+v\n\n", c)
-	}
+	c.RedisSocket = utils.GetEnv("REDIS_SOCKET")
+	c.ServiceRefreshInterval = utils.GetEnvDuration("SERVICE_REFRESH_INTERVAL", "5001ms")
+	c.NumWorkers = utils.GetEnvInt("NUM_WORKERS", "5")
 	return c
 }

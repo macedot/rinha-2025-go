@@ -16,6 +16,6 @@ type ProcessorSummary struct {
 }
 
 type SummaryResponse struct {
-	Default  ProcessorSummary `json:"default"`
-	Fallback ProcessorSummary `json:"fallback"`
+	Default  *ProcessorSummary `json:"default"`
+	Fallback *ProcessorSummary `json:"fallback"`
 }

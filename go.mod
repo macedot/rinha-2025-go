@@ -1,11 +1,11 @@
-module rinha-2025
+module rinha-2025-go
 
 go 1.24.5
 
 require (
 	github.com/go-www/silverlining v1.3.3
 	github.com/ohler55/ojg v1.26.10
-	github.com/redis/go-redis/v9 v9.12.1
+	github.com/redis/go-redis/v9 v9.13.0
 	github.com/valyala/fasthttp v1.65.0
 )
 
