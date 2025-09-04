@@ -4,15 +4,17 @@
 APP_NAME := rinha-2025-go
 APP_PORT = 9999
 CLIENT_COMPOSE_FILE = ./test/payment-processor/docker-compose.yml
+ARM_CLIENT_COMPOSE_FILE = ./test/payment-processor/docker-compose-arm64.yml
 COMPOSE_FILE = ./build/docker-compose.yml
 CURL = curl -s -w "\nHTTP Status: %{http_code}\n"
 DOCKER_USER := macedot
 IMAGE_NAME := $(DOCKER_USER)/$(APP_NAME)
 VERSION := $(shell git rev-parse --short HEAD)
+T := $(shell date +%Y%m%d_%H%M%S)
 
 # Default target
 .PHONY: all
-all: build up logs
+all: down build up logs
 
 # Build the Docker images
 .PHONY: build
@@ -50,7 +52,7 @@ logs:
 .PHONY: image
 image:
 	@echo "🐳 Build da imagem Docker..."
-	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
+	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest -f ./build/Dockerfile .
 
 # Push the Docker image to Docker Hub
 .PHONY: push
@@ -96,34 +98,39 @@ client:
 	@echo "Starting CLIENT services..."
 	docker-compose -f $(CLIENT_COMPOSE_FILE) up -d
 
+.PHONY: client-arm
+client-arm:
+	@echo "Starting ARM  services..."
+	docker-compose -f $(ARM_CLIENT_COMPOSE_FILE) up -d
+
 k6:
 	K6_WEB_DASHBOARD_OPEN=false \
 	K6_WEB_DASHBOARD=true \
 	K6_WEB_DASHBOARD_EXPORT='./test/report.html' \
 	K6_WEB_DASHBOARD_PERIOD=2s \
-	SUMMARY_FILE=./test/summary/partial-result.json \
 	k6 run ./test/rinha.js
+	mv ./partial-results.json ./test/summary/partial-results.json.$(T) \
 
 k6-1k:
 	K6_WEB_DASHBOARD_OPEN=false \
 	K6_WEB_DASHBOARD=true \
 	K6_WEB_DASHBOARD_EXPORT='./test/report-1k.html' \
 	K6_WEB_DASHBOARD_PERIOD=2s \
-	SUMMARY_FILE=./test/summary/partial-result-1k.json \
 	k6 run -e MAX_REQUESTS=1000 ./test/rinha.js
+	mv ./partial-results.json ./test/summary/partial-results-1k.json.$(T) \
 
 k6-5k:
 	K6_WEB_DASHBOARD_OPEN=false \
 	K6_WEB_DASHBOARD=true \
 	K6_WEB_DASHBOARD_EXPORT='./test/report-5k.html' \
 	K6_WEB_DASHBOARD_PERIOD=2s \
-	SUMMARY_FILE=./test/summary/partial-result-5k.json \
 	k6 run -e MAX_REQUESTS=5000 ./test/rinha.js
+	mv ./partial-results.json ./test/summary/partial-results-5k.json.$(T) \
 
 k6-final:
 	K6_WEB_DASHBOARD_OPEN=false \
 	K6_WEB_DASHBOARD=true \
 	K6_WEB_DASHBOARD_EXPORT='./test/report-final.html' \
 	K6_WEB_DASHBOARD_PERIOD=2s \
-	SUMMARY_FILE=./test/summary/final-result.json \
 	k6 run ./test/rinha-final.js
+	mv ./final-results.json ./test/summary/final-results.json.$(T) \

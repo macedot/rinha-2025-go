@@ -1,9 +1,10 @@
 package services
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
-	"reflect"
+	"os"
 	"rinha-2025-go/internal/config"
 	"rinha-2025-go/internal/database"
 	"rinha-2025-go/internal/models"
@@ -16,14 +17,16 @@ import (
 
 const (
 	HEALTH_REDIS_KEY       = "health"
-	HEALTH_REDIS_TIMEOUT   = "timeout"
+	HEALTH_REDIS_LOCK      = "health_lock"
+	HEALTH_REDIS_LOCK_TIME = "health_lock_time"
 	HEALTH_REDIS_INSTANCES = "instances"
 )
 
 type Health struct {
-	cfg    *config.Config
-	redis  *database.Redis
-	client *HttpClient
+	cfg      *config.Config
+	redis    *database.Redis
+	client   *HttpClient
+	services *config.Services
 }
 
 func NewHealth(
@@ -31,10 +34,12 @@ func NewHealth(
 	redis *database.Redis,
 	client *HttpClient,
 ) *Health {
+	services := config.GetServices()
 	return &Health{
-		cfg:    config,
-		redis:  redis,
-		client: client,
+		cfg:      config,
+		redis:    redis,
+		client:   client,
+		services: services,
 	}
 }
 
@@ -42,106 +47,130 @@ func (h *Health) Close() {
 	h.redis.Close()
 }
 
-func (h *Health) ResetHealthTimeout() {
-	h.redis.SetInt(HEALTH_REDIS_KEY, HEALTH_REDIS_TIMEOUT, 0)
-}
-
-func (h *Health) SetHealthTimeout(duration time.Duration) error {
-	value := time.Now().UTC().Add(duration).UnixMilli()
-	return h.redis.SetInt(HEALTH_REDIS_KEY, HEALTH_REDIS_TIMEOUT, value)
-}
-
-func (h *Health) GetHealthTimeout() int64 {
-	return h.redis.GetInt(HEALTH_REDIS_KEY, HEALTH_REDIS_TIMEOUT)
-}
-
-func (h *Health) GetActiveInstance() *config.ServiceStatus {
-	var activeService config.ServiceStatus
+func (h *Health) GetActiveInstance() *config.Service {
 	jsonData := h.redis.GetString(HEALTH_REDIS_KEY, HEALTH_REDIS_INSTANCES)
-	if jsonData != "" {
-		err := oj.Unmarshal([]byte(jsonData), &activeService)
-		if err != nil {
-			log.Print("GetActiveInstance:", err, jsonData)
-		}
+	if jsonData == "" {
+		return nil
+	}
+	var activeService config.Service
+	if err := oj.Unmarshal([]byte(jsonData), &activeService); err != nil {
+		log.Print("GetActiveInstance:", err, jsonData)
+		return nil
 	}
 	return &activeService
 }
 
-func (h *Health) SetInstancesCache(activeInstance *config.ServiceStatus) error {
-	activeInstance.LastUpdate = time.Now()
-	bytes, err := oj.Marshal(activeInstance)
-	if err == nil {
-		err = h.redis.SetString(HEALTH_REDIS_KEY, HEALTH_REDIS_INSTANCES, string(bytes))
-	}
+func (h *Health) setActiveInstance(activeService *config.Service) error {
+	bytes, err := oj.Marshal(activeService)
 	if err != nil {
-		log.Print("SetInstancesCache:", err, activeInstance)
+		log.Print("SetActiveInstance:", err, activeService)
+		return err
 	}
-	return err
+	return h.redis.SetString(HEALTH_REDIS_KEY, HEALTH_REDIS_INSTANCES, string(bytes))
 }
 
-func (h *Health) ResetInstancesCache(activeInstance *config.ServiceStatus) error {
-	currentInstance := h.GetActiveInstance()
-	if currentInstance == nil {
-		return h.SetInstancesCache(activeInstance)
+func (h *Health) selectActiveInstance() *config.Service {
+	d := &h.services.Default
+	f := &h.services.Fallback
+
+	if d.Failing {
+		if f.Failing {
+			return nil
+		}
+		return f
 	}
-	return nil
+
+	if d.MinResponseTime <= 150 || f.Failing || d.MinResponseTime == f.MinResponseTime {
+		return d
+	}
+
+	if f.MinResponseTime <= 150 {
+		return f
+	}
+
+	return d
 }
 
-func (h *Health) RefreshServiceStatus() {
-	currStatus := h.cfg.GetActiveService()
-	currServices := h.cfg.GetServices()
-	h.updateServicesHealth(currServices)
-	h.cfg.UpdateServices(currServices).UpdateActiveInstance()
-	activeStatus := h.cfg.GetActiveService()
-	h.SetInstancesCache(activeStatus)
-	if !reflect.DeepEqual(currStatus, activeStatus) {
-		log.Print("RefreshServiceStatus:", activeStatus)
+func (h *Health) refreshServiceStatus() {
+	start := time.Now()
+	currentActive := h.GetActiveInstance()
+	h.updateServicesHealth(h.services)
+	activeStatus := h.selectActiveInstance()
+	h.setActiveInstance(activeStatus)
+	from, to := "nil", "nil"
+	if currentActive != nil {
+		from = fmt.Sprintf("[%s %d]", currentActive.Table, currentActive.MinResponseTime)
 	}
+	if activeStatus != nil {
+		to = fmt.Sprintf("[%s %d]", activeStatus.Table, activeStatus.MinResponseTime)
+	}
+	if from == to {
+		return
+	}
+	log.Println(from, "->", to)
+	log.Println("refreshServiceStatus:", time.Since(start))
 }
 
-func (h *Health) UpdateServicesHealth() {
-	now := time.Now().UTC().UnixMilli()
-	expiration := h.GetHealthTimeout()
-	if expiration < now {
-		h.SetHealthTimeout(time.Hour)
-		h.RefreshServiceStatus()
-		h.SetHealthTimeout(h.cfg.ServiceRefreshInterval)
-	}
-}
-
-func (h *Health) updateServicesHealth(services []config.Service) {
+func (h *Health) updateServicesHealth(services *config.Services) {
 	var wg sync.WaitGroup
-	for i, service := range services {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			health := h.getServiceHealth(&service)
-			services[i].Failing = health.Failing
-			services[i].MinResponseTime = health.MinResponseTime
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		health := h.getServiceHealth(&services.Default)
+		services.Default.Failing = health.Failing
+		services.Default.MinResponseTime = health.MinResponseTime
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		health := h.getServiceHealth(&services.Fallback)
+		services.Fallback.Failing = health.Failing
+		services.Fallback.MinResponseTime = health.MinResponseTime
+	}()
 	wg.Wait()
 }
 
 func (h *Health) getServiceHealth(service *config.Service) *models.HealthResponse {
 	health := models.HealthResponse{Failing: true}
-	statusCode, body := h.client.Get(service.URL + "/payments/service-health")
+	statusCode, body, err := h.client.Get(service.URL+"/payments/service-health", service)
+	if err != nil {
+		log.Print("getServiceHealth:Get:", service.URL, err)
+		return &health
+	}
 	if statusCode == fasthttp.StatusOK {
 		if err := oj.Unmarshal(body, &health); err != nil {
 			health.Failing = true
-			log.Print("getServiceHealth:", service.URL, err)
+			log.Print("getServiceHealth:Unmarshal:", service.URL, err)
 		}
 	}
+	// log.Println("getServiceHealth:", service.Table, ":", health)
 	return &health
 }
 
 func (h *Health) ProcessServicesHealth() {
-	h.ResetHealthTimeout()
-	sleep := time.Duration(rand.Intn(3))
-	log.Printf("Sleep for %d seconds...", sleep)
-	time.Sleep(sleep * time.Second)
+	lockValue, _ := os.Hostname()
+	lockTTL := time.Second + h.cfg.ServiceRefreshInterval
+	sleep := time.Duration(rand.Intn(3000))
+	log.Printf("Sleep for %d ms...", sleep)
+	time.Sleep(sleep * time.Millisecond)
 	for {
-		h.UpdateServicesHealth()
-		time.Sleep(h.cfg.ServiceRefreshInterval)
+		waitTime := h.cfg.ServiceRefreshInterval
+		if !h.redis.TryLock(HEALTH_REDIS_LOCK, lockValue, lockTTL) {
+			time.Sleep(time.Second)
+			continue
+		}
+		lastRun, err := h.redis.GetLastRunTime(HEALTH_REDIS_LOCK_TIME)
+		if err == nil {
+			waitTime = h.cfg.ServiceRefreshInterval - time.Since(lastRun)
+			if waitTime < 0 {
+				h.refreshServiceStatus()
+				h.redis.SetLastRunTime(HEALTH_REDIS_LOCK_TIME, time.Now())
+				waitTime = h.cfg.ServiceRefreshInterval
+			}
+		} else {
+			log.Println("ProcessServicesHealth:GetLastRunTime:", err)
+		}
+		h.redis.Unlock(HEALTH_REDIS_LOCK)
+		time.Sleep(waitTime)
 	}
 }

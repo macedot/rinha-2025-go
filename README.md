@@ -2,11 +2,11 @@
 
 Essa é minha participação na lendária [**Rinha de Backend 2025**](https://github.com/zanfranceschi/rinha-de-backend-2025)! 🥊
 As demais branches contem estudos utilizando outras linguagens e modelagens utilizadas na participação de outros participantes.
+Esta NAO é a solucao submetida. Ela foi trabalhada apos o fim do desafio.
 
 ## 🛠️ Tecnologias Utilizadas 👨‍💻
 
 * **Go** - [Build simple, secure, scalable systems with Go](https://go.dev/)
-* **Silverlining** - [Silverlining is a low-level HTTP Framework for Go Programming Language.](https://github.com/go-www/silverlining)
 * **FastHTTP** - [Fast HTTP for Go](https://github.com/valyala/fasthttp)
 * **Redis** - [The Real-time Data Platform](https://redis.io/)
 * **go-redis** - [Redis Go client](https://github.com/redis/go-redis)
@@ -20,6 +20,22 @@ As demais branches contem estudos utilizando outras linguagens e modelagens util
 git clone https://github.com/macedot/rinha-2025-go
 cd rinha-2025-go
 docker compose up -d --build
+```
+
+## Execucao Local (Rinha Final)
+
+### AMD Ryzen 9 5900X @ 3.70 GHz
+
+```json
+{
+  "total_liquido": 2017182.213585,
+  "total_bruto": 1817532.5,
+  "total_taxas": 150439.7615,
+  "p99": {
+    "valor": "0.45ms",
+    "bonus": "21%",
+  }
+}
 ```
 
 ## Repositório no GitHub

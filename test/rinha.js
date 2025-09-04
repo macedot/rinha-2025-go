@@ -2,160 +2,23 @@ import { textSummary } from "https://jslib.k6.io/k6-summary/0.1.0/index.js";
 import { uuidv4 } from "https://jslib.k6.io/k6-utils/1.4.0/index.js";
 import { sleep } from "k6";
 import exec from "k6/execution";
-import Big from "https://cdn.jsdelivr.net/npm/big.js@7.0.1/big.min.js";
 import { Counter } from "k6/metrics";
-import { Httpx } from 'https://jslib.k6.io/httpx/0.1.0/index.js';
+import {
+  token,
+  setPPToken,
+  setPPDelay,
+  setPPFailure,
+  resetPPDatabase,
+  getPPPaymentsSummary,
+  resetBackendDatabase,
+  getBackendPaymentsSummary,
+  requestBackendPayment
+} from "./requests.js";
 
-const summaryJsonFileName = __ENV.SUMMARY_FILE ?? `./summary/partial-results.json`;
-const MAX_REQUESTS = __ENV.MAX_REQUESTS ?? 550;
-const initialToken = '123';
-export const token = __ENV.TOKEN ?? initialToken;
+// https://mikemcl.github.io/big.js/
+import Big from "https://cdn.jsdelivr.net/npm/big.js@7.0.1/big.min.js";
 
-const paymentProcessorDefaultHttp = new Httpx({
-  baseURL: 'http://10.4.2.250:8001',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Rinha-Token': token
-  },
-  timeout: 1500,
-});
-
-const paymentProcessorFallbacktHttp = new Httpx({
-  baseURL: 'http://10.4.2.250:8002',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Rinha-Token': token
-  },
-  timeout: 1500,
-});
-
-const backendHttp = new Httpx({
-  baseURL: "http://10.4.2.250:9999",
-  //baseURL: "http://10.4.2.250:5123",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  timeout: 1500,
-});
-
-const paymentProcessorHttp = {
-  "default": paymentProcessorDefaultHttp,
-  "fallback": paymentProcessorFallbacktHttp,
-};
-
-export async function setPPToken(service, token) {
-
-  const httpClient = paymentProcessorHttp[service];
-  const params = { headers: { 'X-Rinha-Token': initialToken } };
-
-  const payload = JSON.stringify({
-    token: token
-  });
-
-  const response = await httpClient.asyncPut('/admin/configurations/token', payload, params);
-
-  if (response.status != 204) {
-    exec.test.abort(`Erro ao definir token para ${service} (HTTP ${response.status}).`);
-  }
-}
-
-export async function setPPDelay(service, ms) {
-
-  const httpClient = paymentProcessorHttp[service];
-
-  const payload = JSON.stringify({
-    delay: ms
-  });
-
-  const response = await httpClient.asyncPut('/admin/configurations/delay', payload);
-
-  if (response.status != 200) {
-    exec.test.abort(`Erro ao definir delay para ${service} (HTTP ${response.status}).`);
-  }
-}
-
-export async function setPPFailure(service, failure) {
-
-  const httpClient = paymentProcessorHttp[service];
-
-  const payload = JSON.stringify({
-    failure: failure
-  });
-
-  const response = await httpClient.asyncPut('/admin/configurations/failure', payload);
-
-  if (response.status != 200) {
-    exec.test.abort(`Erro ao definir failure para ${service} (HTTP ${response.status}).`);
-  }
-}
-
-export async function resetPPDatabase(service) {
-
-  const httpClient = paymentProcessorHttp[service];
-  const response = await httpClient.asyncPost('/admin/purge-payments');
-
-  if (response.status != 200) {
-    exec.test.abort(`Erro ao resetar database para ${service} (HTTP ${response.status}).`);
-  }
-}
-
-export async function getPPPaymentsSummary(service, from, to) {
-
-  const httpClient = paymentProcessorHttp[service];
-  const response = await httpClient.asyncGet(`/admin/payments-summary?from=${from}&to=${to}`);
-
-  if (response.status == 200) {
-    return JSON.parse(response.body);
-  }
-
-  console.error(`Não foi possível obter resposta de '/admin/payments-summary?from=${from}&to=${to}' para ${service} (HTTP ${response.status})`);
-
-  return {
-    totalAmount: 0,
-    totalRequests: 0,
-    feePerTransaction: 0,
-    totalFee: 0
-  }
-}
-
-export async function resetBackendDatabase() {
-
-  try {
-    await backendHttp.asyncPost('/purge-payments');
-  } catch (error) {
-    console.info("Seu backend provavelmente não possui um endpoint para resetar o banco. Isso não é um problem.", error.message);
-  }
-}
-
-export async function getBackendPaymentsSummary(from, to) {
-
-  const response = await backendHttp.asyncGet(`/payments-summary?from=${from}&to=${to}`);
-
-  if (response.status == 200) {
-    return JSON.parse(response.body);
-  }
-
-  console.error(`Não foi possível obter resposta de '/payments-summary?from=${from}&to=${to}' para o backend (HTTP ${response.status})`);
-
-  return {
-    default: {
-      totalAmount: 0,
-      totalRequests: 0
-    },
-    fallback: {
-      totalAmount: 0,
-      totalRequests: 0
-    }
-  }
-}
-
-export async function requestBackendPayment(payload) {
-
-  const response = await backendHttp.asyncPost('/payments', JSON.stringify(payload));
-  return response;
-}
-
-
+const MAX_REQUESTS = __ENV.MAX_REQUESTS ?? 500;
 
 export const options = {
   summaryTrendStats: [
@@ -308,7 +171,7 @@ export async function teardown() {
   fallbackTotalAmountCounter.add(backendPaymentsSummary.fallback.totalAmount);
   fallbackTotalRequestsCounter.add(backendPaymentsSummary.fallback.totalRequests);
 
-  const defaultTotalFee = new Big(defaultResponse.feePerTransaction).times(backendPaymentsSummary.default.totalAmount);
+  const defaultTotalFee =  new Big(defaultResponse.feePerTransaction).times(backendPaymentsSummary.default.totalAmount);
   const fallbackTotalFee = new Big(fallbackResponse.feePerTransaction).times(backendPaymentsSummary.fallback.totalAmount);
 
   defaultTotalFeeCounter.add(defaultTotalFee.toNumber());
@@ -361,10 +224,10 @@ export async function checkPaymentsConsistency() {
   ]);
 
   const inconsistencies =
-    Math.abs(
-      (backendPaymentsSummary.default.totalRequests - defaultAdminPaymentsSummary.totalRequests) +
-      (backendPaymentsSummary.fallback.totalRequests - fallbackAdminPaymentsSummary.totalRequests)
-    );
+      Math.abs(
+        (backendPaymentsSummary.default.totalRequests - defaultAdminPaymentsSummary.totalRequests) +
+        (backendPaymentsSummary.fallback.totalRequests - fallbackAdminPaymentsSummary.totalRequests)
+      );
 
   paymentsInconsistencyCounter.add(inconsistencies);
 
@@ -402,7 +265,7 @@ export function handleSummary(data) {
   const p_99 = new Big(data.metrics["http_req_duration{expected_response:true}"].values["p(99)"]).round(2).toNumber();
   const p_99_bonus = Math.max(new Big((11 - p_99) * 0.02).round(2).toNumber(), 0);
   const contains_inconsistencies = data.metrics.payments_inconsistency.values.count > 0;
-
+  
   const inconsistencies_fine = contains_inconsistencies ? 0.35 : 0;
 
   // caixa dois
@@ -414,10 +277,11 @@ export function handleSummary(data) {
   const liquid_amount = new Big(liquid_partial_amount)
     .plus(new Big(liquid_partial_amount).times(p_99_bonus))
     .minus(new Big(liquid_partial_amount).times(inconsistencies_fine)).toNumber();
-
+  
   const name = __ENV.PARTICIPANT ?? "anonymous";
 
   const custom_data = {
+    timestamp: new Date().toISOString(),
     participante: name,
     total_liquido: liquid_amount,
     total_bruto: actual_total_amount,
@@ -470,10 +334,12 @@ export function handleSummary(data) {
     stdout: textSummary(data),
   };
 
-  // const participant = __ENV.PARTICIPANT;
-  // if (participant != undefined) {
-  //   summaryJsonFileName = `../participantes/${participant}/partial-results.json`
-  // }
+  const participant = __ENV.PARTICIPANT;
+  let summaryJsonFileName = `../participantes/${participant}/partial-results.json`
+
+  if (participant == undefined) {
+    summaryJsonFileName = `./partial-results.json`
+  }
 
   result[summaryJsonFileName] = JSON.stringify(custom_data, null, 2);
 

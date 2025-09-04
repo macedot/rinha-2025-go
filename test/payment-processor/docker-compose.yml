@@ -41,7 +41,7 @@ services:
     container_name: payment-processor-default
     hostname: payment-processor-default
     environment:
-      - TRANSACTION_FEE=0.05
+      - TRANSACTION_FEE=0.07
       - RATE_LIMIT_SECONDS=5
       - INITIAL_TOKEN=123
       - DB_CONNECTION_STRING=Host=/var/run/postgresql;Port=5432;Database=rinha;Username=postgres;Password=postgres;Minimum Pool Size=15;Maximum Pool Size=20;Connection Pruning Interval=3
@@ -65,7 +65,7 @@ services:
     container_name: payment-processor-fallback
     hostname: payment-processor-fallback
     environment:
-      - TRANSACTION_FEE=0.15
+      - TRANSACTION_FEE=0.10
       - RATE_LIMIT_SECONDS=5
       - INITIAL_TOKEN=123
       - DB_CONNECTION_STRING=Host=/var/run/postgresql;Port=5432;Database=rinha;Username=postgres;Password=postgres;Minimum Pool Size=15;Maximum Pool Size=20;Connection Pruning Interval=3

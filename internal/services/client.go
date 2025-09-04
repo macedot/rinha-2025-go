@@ -1,8 +1,8 @@
 package services
 
 import (
-	"log"
 	"rinha-2025-go/internal/config"
+	"rinha-2025-go/pkg/http"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -16,43 +16,38 @@ var headerContentTypeJSON = []byte("application/json")
 
 func NewHttpClient() *HttpClient {
 	return &HttpClient{
-		client: &fasthttp.Client{
-			ReadTimeout:                   5 * time.Second,
-			WriteTimeout:                  5 * time.Second,
-			MaxIdleConnDuration:           1 * time.Hour,
-			NoDefaultUserAgentHeader:      true, // Don't send: User-Agent: fasthttp
-			DisableHeaderNamesNormalizing: true, // If you set the case on your headers correctly you can enable this
-			DisablePathNormalizing:        true,
-			Dial: (&fasthttp.TCPDialer{
-				Concurrency:      4096,
-				DNSCacheDuration: time.Hour,
-			}).Dial,
-		},
+		client: http.NewFastHttpClient(),
 	}
 }
 
-func (c *HttpClient) Get(url string) (int, []byte) {
-	statusCode, body, err := c.client.Get([]byte{}, url)
+func (c *HttpClient) Get(url string, instance *config.Service) (int, []byte, error) {
+	req := fasthttp.AcquireRequest()
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+	req.SetRequestURI(url)
+	req.Header.SetMethod(fasthttp.MethodGet)
+	req.Header.Set("X-Rinha-Token", instance.Token)
+	timeout := instance.Timeout + time.Duration(instance.MinResponseTime)*time.Millisecond
+	err := c.client.DoTimeout(req, resp, timeout)
 	if err != nil {
-		log.Fatalf("HTTP GET request failed: %v", err)
+		return 0, nil, err
 	}
-	if statusCode != fasthttp.StatusOK {
-		log.Fatalf("HTTP GET request failed: %v", err)
-	}
-	return statusCode, body
+	return resp.StatusCode(), resp.Body(), nil
 }
 
 func (c *HttpClient) Post(url string, payload []byte, instance *config.Service) (int, error) {
 	req := fasthttp.AcquireRequest()
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
 	req.SetRequestURI(url)
 	req.Header.SetMethod(fasthttp.MethodPost)
 	req.Header.SetContentTypeBytes(headerContentTypeJSON)
 	req.Header.Set("X-Rinha-Token", instance.Token)
 	req.SetBodyRaw(payload)
-	resp := fasthttp.AcquireResponse()
-	err := c.client.DoTimeout(req, resp, instance.Timeout+time.Duration(instance.MinResponseTime)*time.Millisecond)
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(resp)
+	timeout := instance.Timeout + time.Duration(instance.MinResponseTime)*time.Millisecond
+	err := c.client.DoTimeout(req, resp, timeout)
 	if err != nil {
 		return 0, err
 	}

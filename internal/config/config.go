@@ -6,8 +6,6 @@ import (
 	"rinha-2025-go/pkg/utils"
 	"strconv"
 	"time"
-
-	"github.com/ohler55/ojg/oj"
 )
 
 type Service struct {
@@ -21,27 +19,18 @@ type Service struct {
 	Timeout         time.Duration
 	KeyAmount       string
 	KeyTime         string
-	LastUpdate      time.Time
 }
 
-type ServiceMode int
-
-const (
-	None ServiceMode = iota - 1
-	Default
-	Fallback
-)
-
-type ServiceStatus struct {
-	Mode       ServiceMode
-	LastUpdate time.Time
+type Services struct {
+	Default  Service
+	Fallback Service
 }
 
 type Config struct {
 	ServerSocket           string
 	RedisSocket            string
-	ActiveService          ServiceStatus
-	Services               []Service
+	ActiveInstance         *Service
+	Services               Services
 	ServiceRefreshInterval time.Duration
 	NumWorkers             int
 }
@@ -52,89 +41,46 @@ func ConfigInstance() *Config {
 	return &appConfig
 }
 
-func (c *Config) GetServices() []Service {
-	return c.Services
+func (c *Config) GetServices() *Services {
+	return &c.Services
 }
 
-func (c *Config) GetActiveService() *ServiceStatus {
-	return &c.ActiveService
+func (c *Config) SetServices(services *Services) {
+	c.Services = *services
 }
 
-func (c *Config) UpdateServices(services []Service) *Config {
-	c.Services = services
-	return c
+func (c *Config) GetActiveInstance() *Service {
+	return c.ActiveInstance
 }
-
-// https://github.com/JosineyJr/rdb25_02/blob/ae8517f398e4261890bbfe0bd57ca986642a34e5/internal/routing/router.go#L121
-// https://github.com/zanfranceschi/rinha-de-backend-2025/blob/main/participantes/andersongomes001/partial-results.json
-func (c *Config) UpdateActiveInstance() *Config {
-	c.ActiveService = ServiceStatus{Mode: None}
-	if len(c.Services) == 1 {
-		if c.Services[0].Failing {
-			return c
-		}
-		c.ActiveService.Mode = Default
-		return c
-	}
-	if c.Services[0].Failing {
-		if c.Services[1].Failing {
-			return c
-		}
-		c.ActiveService.Mode = Fallback
-		return c
-	}
-	dl := float32(c.Services[0].MinResponseTime)
-	if dl <= 100 || c.Services[1].Failing {
-		c.ActiveService.Mode = Default
-		return c
-	}
-	fl := float32(c.Services[1].MinResponseTime)
-	if dl-fl < 1000 {
-		c.ActiveService.Mode = Default
-		return c
-	}
-	c.ActiveService.Mode = Fallback
-	return c
+func (c *Config) SetActiveInstance(activeService *Service) {
+	c.ActiveInstance = activeService
 }
 
 func (c *Config) Init() *Config {
-	var services []Service
-	var err error
-	envServices := utils.GetEnv("SERVICES")
-	if err := oj.Unmarshal([]byte(envServices), &services); err != nil {
-		log.Fatal("error unmarshaling JSON:", err)
-	}
-	if len(services) < 1 {
-		log.Fatal("Config: at least one services is required")
-	}
-	for _, service := range services {
-		if service.URL == "" {
-			log.Fatal("Config: missing URL from Service")
-		}
-		if service.Table == "" {
-			log.Fatal("Config: missing Table from Service")
-		}
-		if service.Token == "" {
-			service.Token = "123"
-		}
-		//service.Fee = 0.0
-		service.Failing = false
-		service.MinResponseTime = 0
-		service.Timeout = 3 * time.Second
-		service.KeyAmount = fmt.Sprintf("summary:%s:data", service.Table)
-		service.KeyTime = fmt.Sprintf("summary:%s:history", service.Table)
-		c.Services = append(c.Services, service)
-		log.Print("Service:", service)
-	}
-	c.ServerSocket = utils.GetEnvOr("SERVER_SOCKET", "")
-	c.RedisSocket = utils.GetEnv("REDIS_SOCKET")
-	c.ServiceRefreshInterval, err = time.ParseDuration(utils.GetEnvOr("SERVICE_REFRESH_INTERVAL", "5s"))
-	if err != nil {
-		log.Fatal("error parsing SERVICE_REFRESH_INTERVAL:", err)
-	}
-	c.NumWorkers, err = strconv.Atoi(utils.GetEnvOr("NUM_WORKERS", "1"))
+	c.Services.Default.URL = "http://payment-processor-default:8080"
+	c.Services.Default.Table = "d"
+	c.Services.Default.Token = "123"
+	c.Services.Default.KeyAmount = fmt.Sprintf("summary:%s:data", c.Services.Default.Table)
+	c.Services.Default.KeyTime = fmt.Sprintf("summary:%s:history", c.Services.Default.Table)
+	c.Services.Default.Timeout = 10 * time.Second
+
+	c.Services.Fallback.URL = "http://payment-processor-fallback:8080"
+	c.Services.Fallback.Table = "f"
+	c.Services.Fallback.Token = "123"
+	c.Services.Fallback.KeyAmount = fmt.Sprintf("summary:%s:data", c.Services.Fallback.Table)
+	c.Services.Fallback.KeyTime = fmt.Sprintf("summary:%s:history", c.Services.Fallback.Table)
+	c.Services.Fallback.Timeout = 10 * time.Second
+
+	c.ServiceRefreshInterval = 5 * time.Second
+	c.ActiveInstance = &c.Services.Default
+	c.RedisSocket = "/sockets/redis.sock"
+	c.ServerSocket = utils.GetEnv("SERVER_SOCKET")
+
+	workers, err := strconv.Atoi(utils.GetEnvOr("NUM_WORKERS", "50"))
 	if err != nil {
 		log.Fatal("error parsing NUM_WORKERS:", err)
 	}
+	c.NumWorkers = workers
+
 	return c
 }

@@ -15,8 +15,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const minWaitTime = 100 * time.Millisecond
-
 type PaymentWorker struct {
 	ctx    context.Context
 	config *config.Config
@@ -32,10 +30,11 @@ func NewPaymentWorker(
 	client *HttpClient,
 	health *Health,
 ) *PaymentWorker {
+	ctx := context.Background()
 	return &PaymentWorker{
-		ctx:    context.Background(),
+		ctx:    ctx,
 		config: cfg,
-		queue:  NewPaymentQueue(20 * 1024),
+		queue:  NewPaymentQueue(ctx, cfg.RedisSocket),
 		client: client,
 		redis:  redis,
 		health: health,
@@ -47,59 +46,73 @@ func (w *PaymentWorker) Close() {
 }
 
 func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
-	payment.Timestamp = time.Now().UTC()
-	w.queue.Enqueue(payment)
+	// w.redis.AddStat("EnqueuePayment")
+	go w.queue.Enqueue(payment)
 }
+
 func (w *PaymentWorker) ProcessQueue() {
 	for {
-		select {
-		case <-w.ctx.Done():
-			return
-		default:
-			payment := w.queue.Dequeue()
-			if err := w.ProcessPayment(payment); err != nil {
-				w.queue.Enqueue(payment)
-			}
+		payment := w.queue.Dequeue()
+		if payment == nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		if err := w.ProcessPayment(payment); err != nil {
+			w.queue.Enqueue(payment)
 		}
 	}
 }
 
-func (w *PaymentWorker) getCurrentInstance() *config.ServiceStatus {
-	var activeInstance *config.ServiceStatus
+func (w *PaymentWorker) getCurrentInstance() *config.Service {
 	for {
-		activeInstance = w.health.GetActiveInstance()
-		if activeInstance != nil && activeInstance.Mode != config.None {
-			return activeInstance
+		if instance := w.health.GetActiveInstance(); instance != nil {
+			return instance
 		}
-		waitTime := max(5*time.Second-time.Since(activeInstance.LastUpdate), minWaitTime)
-		time.Sleep(waitTime)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
-	payload, err := oj.Marshal(payment)
-	if err != nil {
-		return err
-	}
-	activeInstance := w.getCurrentInstance()
-	instance := &w.config.GetServices()[activeInstance.Mode]
-	return w.forwardPayment(instance, payment, payload)
+	// w.redis.AddStat("ProcessPayment")
+	var wg sync.WaitGroup
+	var activeInstance *config.Service
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		activeInstance = w.getCurrentInstance()
+	}()
+	var payload []byte
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		payment.Timestamp = time.Now().UTC()
+		payload, _ = oj.Marshal(payment)
+	}()
+	wg.Wait()
+	return w.forwardPayment(activeInstance, payment, payload)
 }
 
 func (w *PaymentWorker) forwardPayment(instance *config.Service, payment *models.Payment, payload []byte) error {
+	// w.redis.AddStat("forwardPayment")
 	status, err := w.client.Post(instance.URL+"/payments", payload, instance)
 	if err != nil || status < fasthttp.StatusOK || status >= fasthttp.StatusMultipleChoices {
 		if status == fasthttp.StatusUnprocessableEntity {
 			return nil
 		}
+		if status == 0 || status == fasthttp.StatusInternalServerError {
+			time.Sleep(time.Second)
+		}
 		return fmt.Errorf("invalid status code: %d", status)
 	}
-	w.redis.SavePayment(instance, payment)
+	if err := w.redis.SavePayment(instance, payment); err != nil {
+		return fmt.Errorf("failed to save payment: %w", err)
+	}
+	// w.redis.AddStat("SavePayment")
 	return nil
 }
 
 func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, error) {
-	param, err := processSummary(from, to)
+	param, err := processSummaryParam(from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -110,27 +123,24 @@ func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, er
 	start := time.Now()
 	go func() {
 		defer wg.Done()
-		res.Default, err = w.redis.GetSummary(&services[0], param)
-		if err != nil {
-			log.Println("GetSummary:0:", err.Error())
-		}
+		res.Default = w.redis.GetSummary(&services.Default, param)
 	}()
-	if len(services) > 1 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			res.Fallback, err = w.redis.GetSummary(&services[1], param)
-			if err != nil {
-				log.Println("GetSummary:1:", err.Error())
-			}
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		res.Fallback = w.redis.GetSummary(&services.Fallback, param)
+	}()
 	wg.Wait()
 	log.Print("GetSummary:", time.Since(start))
+	log.Println("QueueLength:", w.queue.Length())
+	// log.Println("PaymentsRequested:", w.redis.GetStat("EnqueuePayment"))
+	// log.Println("PaymentsProcessed:", w.redis.GetStat("ProcessPayment"))
+	// log.Println("PaymentsForwarded:", w.redis.GetStat("forwardPayment"))
+	// log.Println("PaymentsSaved:", w.redis.GetStat("SavePayment"))
 	return &res, nil
 }
 
-func processSummary(from, to string) (*models.SummaryParam, error) {
+func processSummaryParam(from, to string) (*models.SummaryParam, error) {
 	var res models.SummaryParam
 	var err error
 	if res.StartTime, err = processTime(from, "-inf"); err != nil {
@@ -155,36 +165,71 @@ func processTime(param string, value string) (string, error) {
 
 func (w *PaymentWorker) PurgePayments() error {
 	var wg sync.WaitGroup
+	start := time.Now()
 	services := w.config.GetServices()
-	for _, service := range services {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := w.purgePaymentProcessor(&service)
-			if err != nil {
-				log.Print("purgePaymentProcessor:", err)
-			}
-		}()
-	}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := w.redis.FlushAll()
-		if err != nil {
-			log.Print("FlushAll:", err)
-		}
+		w.purgePaymentProcessor(&services.Default)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		w.purgePaymentProcessor(&services.Fallback)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		w.redis.FlushAll()
+		// w.redis.ResetStat("EnqueuePayment")
+		// w.redis.ResetStat("ProcessPayment")
+		// w.redis.ResetStat("forwardPayment")
+		// w.redis.ResetStat("SavePayment")
 	}()
 	wg.Wait()
+	log.Print("PurgePayments:", time.Since(start))
 	return nil
 }
 
 func (w *PaymentWorker) purgePaymentProcessor(instance *config.Service) error {
 	if _, _, err := fasthttp.Post(nil, instance.URL+"/admin/purge-payments", nil); err != nil {
+		log.Print("purgePaymentProcessor:ERROR:", instance.Table, "|", err)
 		return err
 	}
 	return nil
 }
 
-func (w *PaymentWorker) GetHealth() *config.ServiceStatus {
-	return w.health.GetActiveInstance()
-}
+// func (w *PaymentWorker) UpdateServicesFee() error {
+// 	var wg sync.WaitGroup
+// 	start := time.Now()
+// 	services := w.config.GetServices()
+// 	wg.Add(1)
+// 	go func() {
+// 		defer wg.Done()
+// 		summary := w.updateServiceFee(&services.Default)
+// 		services.Default.Fee = summary.FeePerTransaction
+// 	}()
+// 	wg.Add(1)
+// 	go func() {
+// 		defer wg.Done()
+// 		summary := w.updateServiceFee(&services.Fallback)
+// 		services.Fallback.Fee = summary.FeePerTransaction
+// 	}()
+// 	wg.Wait()
+// 	log.Print("UpdateServicesFee:", time.Since(start))
+// 	return nil
+// }
+
+// func (w *PaymentWorker) updateServiceFee(instance *config.Service) *models.PaymentSummary {
+// 	var summary models.PaymentSummary
+// 	statusCode, body, err := w.client.Get(instance.URL+"/admin/payments-summary", instance)
+// 	if err != nil || statusCode != fasthttp.StatusOK {
+// 		log.Print("updateServiceFee:Get:", instance.Table, ":", statusCode, "|", err)
+// 		return &summary
+// 	}
+// 	if err := oj.Unmarshal(body, &summary); err != nil {
+// 		log.Print("updateServiceFee:Unmarshal:", instance.Table, ":", err)
+// 		return &summary
+// 	}
+// 	return &summary
+// }

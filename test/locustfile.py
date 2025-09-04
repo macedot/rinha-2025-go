@@ -4,7 +4,7 @@ from locust import HttpUser, task
 
 
 class HelloWorldUser(HttpUser):
-    host = "http://10.4.2.250:9999"
+    host = "http://localhost:9999"
 
     # @task
     # def summary(self):
