@@ -155,6 +155,7 @@ func processTime(param string, value string) (string, error) {
 
 func (w *PaymentWorker) PurgePayments() error {
 	var wg sync.WaitGroup
+	start := time.Now()
 	services := w.config.GetServices()
 	for _, service := range services {
 		wg.Add(1)
@@ -175,6 +176,7 @@ func (w *PaymentWorker) PurgePayments() error {
 		}
 	}()
 	wg.Wait()
+	log.Print("PurgePayments:", time.Since(start))
 	return nil
 }
 

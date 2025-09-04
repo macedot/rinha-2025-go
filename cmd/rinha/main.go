@@ -67,6 +67,6 @@ func main() {
 	log.Println("Starting Echo server")
 	log.Printf("Listening on %s", cfg.ServerSocket)
 	listener := NewListenSocket(cfg.ServerSocket)
-	log.Fatal(e.Server.Serve(listener))
-	// e.Logger.Fatal(e.Start(":9999"))
+	e.Logger.Fatal(e.Server.Serve(listener))
+	//e.Logger.Fatal(e.Start(":9999"))
 }
