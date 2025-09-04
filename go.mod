@@ -1,6 +1,6 @@
 module rinha-2025-go
 
-go 1.24.5
+go 1.24.6
 
 require (
 	github.com/go-www/silverlining v1.3.3

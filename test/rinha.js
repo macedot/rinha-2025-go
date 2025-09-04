@@ -426,7 +426,7 @@ export function handleSummary(data) {
     p99: {
       valor: `${p_99}ms`,
       bonus: `${new Big(p_99_bonus).times(100)}%`,
-      max_requests: MAX_REQUESTS,
+      max_requests: MAX_REQUESTS,https://github.com/macedot/rinha-2025-go/pull/2/conflict?name=.gitignore&ancestor_oid=ed2027265a671540c9cd41abc4d9c61a2ddf3a2c&base_oid=d5f482195eeb947b4b0b846746178dc9490e8410&head_oid=7f806f1ac4c84049d8fa83d53b8674bc07251c24
       descricao: "Fórmula para o bônus: max((11 - p99.valor) * 0.02, 0)",
     },
     multa: {

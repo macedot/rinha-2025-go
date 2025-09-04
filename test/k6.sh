@@ -11,5 +11,4 @@ if [[ ! -f "./summary/partial-results.json" ]]; then
 fi
 
 T=$(date +%Y%m%dT%H%M%S)
-mv -f ./summary/k6.logs ./summary/k6.logs.$T
 mv -f ./summary/partial-results.json ./summary/partial-results.json.$T
