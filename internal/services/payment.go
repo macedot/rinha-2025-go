@@ -15,8 +15,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const minWaitTime = 100 * time.Millisecond
-
 type PaymentWorker struct {
 	ctx    context.Context
 	config *config.Config
@@ -32,10 +30,11 @@ func NewPaymentWorker(
 	client *HttpClient,
 	health *Health,
 ) *PaymentWorker {
+	ctx := context.Background()
 	return &PaymentWorker{
-		ctx:    context.Background(),
+		ctx:    ctx,
 		config: cfg,
-		queue:  NewPaymentQueue(20 * 1024),
+		queue:  NewPaymentQueue(ctx, cfg.RedisSocket),
 		client: client,
 		redis:  redis,
 		health: health,
@@ -52,28 +51,27 @@ func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
 }
 func (w *PaymentWorker) ProcessQueue() {
 	for {
-		select {
-		case <-w.ctx.Done():
-			return
-		default:
-			payment := w.queue.Dequeue()
-			if err := w.ProcessPayment(payment); err != nil {
-				w.queue.Enqueue(payment)
-			}
+		payment := w.queue.Dequeue()
+		if payment == nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		if err := w.ProcessPayment(payment); err != nil {
+			w.queue.Enqueue(payment)
 		}
 	}
 }
 
-func (w *PaymentWorker) getCurrentInstance() *config.ServiceStatus {
-	var activeInstance *config.ServiceStatus
-	for {
-		activeInstance = w.health.GetActiveInstance()
-		if activeInstance != nil && activeInstance.Mode != config.None {
+func (w *PaymentWorker) getCurrentInstance() *config.Service {
+	ticker := time.NewTicker(500 + time.Millisecond)
+	defer ticker.Stop()
+	for range ticker.C {
+		activeInstance := w.health.GetActiveInstance()
+		if activeInstance != nil {
 			return activeInstance
 		}
-		waitTime := max(5*time.Second-time.Since(activeInstance.LastUpdate), minWaitTime)
-		time.Sleep(waitTime)
 	}
+	return nil
 }
 
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
@@ -82,8 +80,7 @@ func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
 		return err
 	}
 	activeInstance := w.getCurrentInstance()
-	instance := &w.config.GetServices()[activeInstance.Mode]
-	return w.forwardPayment(instance, payment, payload)
+	return w.forwardPayment(activeInstance, payment, payload)
 }
 
 func (w *PaymentWorker) forwardPayment(instance *config.Service, payment *models.Payment, payload []byte) error {
@@ -110,23 +107,22 @@ func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, er
 	start := time.Now()
 	go func() {
 		defer wg.Done()
-		res.Default, err = w.redis.GetSummary(&services[0], param)
+		res.Default, err = w.redis.GetSummary(&services.Default, param)
 		if err != nil {
-			log.Println("GetSummary:0:", err.Error())
+			log.Println("GetSummary:D:", err.Error())
 		}
 	}()
-	if len(services) > 1 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			res.Fallback, err = w.redis.GetSummary(&services[1], param)
-			if err != nil {
-				log.Println("GetSummary:1:", err.Error())
-			}
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		res.Fallback, err = w.redis.GetSummary(&services.Fallback, param)
+		if err != nil {
+			log.Println("GetSummary:F:", err.Error())
+		}
+	}()
 	wg.Wait()
 	log.Print("GetSummary:", time.Since(start))
+	log.Println("QueueLength:", w.queue.Length())
 	return &res, nil
 }
 
@@ -157,16 +153,22 @@ func (w *PaymentWorker) PurgePayments() error {
 	var wg sync.WaitGroup
 	start := time.Now()
 	services := w.config.GetServices()
-	for _, service := range services {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := w.purgePaymentProcessor(&service)
-			if err != nil {
-				log.Print("purgePaymentProcessor:", err)
-			}
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := w.purgePaymentProcessor(&services.Default)
+		if err != nil {
+			log.Print("purgePaymentProcessor:", err)
+		}
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := w.purgePaymentProcessor(&services.Fallback)
+		if err != nil {
+			log.Print("purgePaymentProcessor:", err)
+		}
+	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -185,8 +187,4 @@ func (w *PaymentWorker) purgePaymentProcessor(instance *config.Service) error {
 		return err
 	}
 	return nil
-}
-
-func (w *PaymentWorker) GetHealth() *config.ServiceStatus {
-	return w.health.GetActiveInstance()
 }

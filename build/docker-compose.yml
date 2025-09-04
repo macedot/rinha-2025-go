@@ -23,7 +23,7 @@ x-api_template:
     resources:
       limits:
         cpus: "0.25"
-        memory: "25MB"
+        memory: "50MB"
 
 services:
   api01:
@@ -31,7 +31,7 @@ services:
     hostname: api01
     container_name: rinha-api01
     environment:
-      NUM_WORKERS: 25
+      NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.1
       REDIS_SOCKET: /sockets/redis.sock
       SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
@@ -41,7 +41,7 @@ services:
     hostname: api02
     container_name: rinha-api02
     environment:
-      NUM_WORKERS: 25
+      NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.2
       REDIS_SOCKET: /sockets/redis.sock
       SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
@@ -51,7 +51,7 @@ services:
     hostname: api03
     container_name: rinha-api03
     environment:
-      NUM_WORKERS: 25
+      NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.3
       REDIS_SOCKET: /sockets/redis.sock
       SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
@@ -61,7 +61,7 @@ services:
     hostname: api04
     container_name: rinha-api04
     environment:
-      NUM_WORKERS: 25
+      NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.4
       REDIS_SOCKET: /sockets/redis.sock
       SERVICES: '[ { "url": "http://payment-processor-default:8080", "table": "d", "fee": 0.05 }, { "url": "http://payment-processor-fallback:8080", "table": "f", "fee": 0.15 } ]'
@@ -87,7 +87,7 @@ services:
       resources:
         limits:
           cpus: "0.20"
-          memory: "75MB"
+          memory: "50MB"
 
   redis:
     image: redis:8-alpine
@@ -111,7 +111,7 @@ services:
       resources:
         limits:
           cpus: "0.30"
-          memory: "75MB"
+          memory: "100MB"
   # prometheus:
   #   image: prom/prometheus:latest
   #   hostname: prometheus

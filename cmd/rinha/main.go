@@ -61,7 +61,6 @@ func main() {
 	e.POST("/payments", handlers.PostPayment(worker))
 	e.GET("/payments-summary", handlers.GetSummary(worker))
 	e.POST("/purge-payments", handlers.PostPurgePayments(worker))
-	e.POST("/health", handlers.GetHealth(worker))
 	//e.GET("/metrics", echoprometheus.NewHandler())
 
 	log.Println("Starting Echo server")
