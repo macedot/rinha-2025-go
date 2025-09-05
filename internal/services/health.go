@@ -126,7 +126,7 @@ func (h *Health) updateServicesHealth(services *config.Services) {
 	go func() {
 		defer wg.Done()
 		health := h.getServiceHealth(&services.Default)
-		// log.Println("updateServicesHealth:", services.Default.Table, health)
+		log.Println("updateServicesHealth:", services.Default.Table, health)
 		services.Default.Failing = health.Failing
 		services.Default.MinResponseTime = health.MinResponseTime
 	}()
@@ -134,7 +134,7 @@ func (h *Health) updateServicesHealth(services *config.Services) {
 	go func() {
 		defer wg.Done()
 		health := h.getServiceHealth(&services.Fallback)
-		// log.Println("updateServicesHealth:", services.Fallback.Table, health)
+		log.Println("updateServicesHealth:", services.Fallback.Table, health)
 		services.Fallback.Failing = health.Failing
 		services.Fallback.MinResponseTime = health.MinResponseTime
 	}()
@@ -159,21 +159,24 @@ func (h *Health) ProcessServicesHealth() {
 	sleep := time.Duration(rand.Intn(3000))
 	log.Printf("Sleep for %d ms...", sleep)
 	time.Sleep(sleep * time.Millisecond)
-	ticker := time.NewTicker(h.cfg.ServiceRefreshInterval + time.Millisecond)
-	defer ticker.Stop()
-	for range ticker.C {
+	for {
+		waitTime := h.cfg.ServiceRefreshInterval
+		if !h.redis.TryLock(HEALTH_REDIS_LOCK, lockValue, lockTTL) {
+			time.Sleep(time.Second)
+			continue
+		}
 		lastRun, err := h.redis.GetLastRunTime(HEALTH_REDIS_LOCK_TIME)
-		if err != nil {
+		if err == nil {
+			waitTime = h.cfg.ServiceRefreshInterval - time.Since(lastRun)
+			if waitTime < 0 {
+				h.refreshServiceStatus()
+				h.redis.SetLastRunTime(HEALTH_REDIS_LOCK_TIME, time.Now())
+				waitTime = h.cfg.ServiceRefreshInterval
+			}
+		} else {
 			log.Println("ProcessServicesHealth:GetLastRunTime:", err)
-			continue
 		}
-		if time.Since(lastRun) < h.cfg.ServiceRefreshInterval {
-			continue
-		}
-		if h.redis.TryLock(HEALTH_REDIS_LOCK, lockValue, lockTTL) {
-			h.refreshServiceStatus()
-			h.redis.SetLastRunTime(HEALTH_REDIS_LOCK_TIME, time.Now())
-			h.redis.Unlock(HEALTH_REDIS_LOCK)
-		}
+		h.redis.Unlock(HEALTH_REDIS_LOCK)
+		time.Sleep(waitTime)
 	}
 }
