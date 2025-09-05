@@ -34,7 +34,6 @@ func (r *Redis) Close() {
 }
 
 func (r *Redis) SavePayment(instance *config.Service, payment *models.Payment) error {
-	//amount := strconv.Itoa(int(math.Round(payment.Amount * 100)))
 	ts := float64(payment.Timestamp.UnixNano()) / 1e9
 	if err := r.Rdb.HSet(r.ctx, instance.KeyAmount, payment.PaymentID, payment.Amount).Err(); err != nil {
 		return err
@@ -63,9 +62,6 @@ func (r *Redis) GetSummary(instance *config.Service, summary *models.SummaryPara
 		}
 		res.RequestCount = len(amounts)
 		for _, val := range amounts {
-			// if i, err := strconv.ParseFloat(val.(string), 32); err == nil {
-			// 	res.TotalAmount += i
-			// }
 			i, _ := strconv.ParseFloat(val.(string), 32)
 			res.TotalAmount += i
 		}
@@ -140,4 +136,24 @@ func (r *Redis) SetLastRunTime(timeKey string, t time.Time) error {
 		return fmt.Errorf("failed to set last run time: %w", err)
 	}
 	return nil
+}
+
+func (r *Redis) ResetStat(key string) error {
+	return r.Rdb.Set(r.ctx, key, "0", 0).Err()
+}
+
+func (r *Redis) AddStat(key string) error {
+	return r.Rdb.Incr(r.ctx, key).Err()
+}
+
+func (r *Redis) GetStat(key string) int64 {
+	result, err := r.Rdb.Get(r.ctx, key).Result()
+	if err == redis.Nil || err != nil {
+		return 0
+	}
+	value, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return value
 }

@@ -46,6 +46,7 @@ func (w *PaymentWorker) Close() {
 }
 
 func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
+	w.redis.AddStat("EnqueuePayment")
 	payment.Timestamp = time.Now().UTC()
 	w.queue.Enqueue(payment)
 }
@@ -57,13 +58,15 @@ func (w *PaymentWorker) ProcessQueue() {
 			continue
 		}
 		if err := w.ProcessPayment(payment); err != nil {
+			//log.Println("ProcessPayment:", err)
 			w.queue.Enqueue(payment)
 		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
 func (w *PaymentWorker) getCurrentInstance() *config.Service {
-	ticker := time.NewTicker(500 + time.Millisecond)
+	ticker := time.NewTicker(100 + time.Millisecond)
 	defer ticker.Stop()
 	for range ticker.C {
 		activeInstance := w.health.GetActiveInstance()
@@ -75,6 +78,7 @@ func (w *PaymentWorker) getCurrentInstance() *config.Service {
 }
 
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
+	w.redis.AddStat("ProcessPayment")
 	payload, err := oj.Marshal(payment)
 	if err != nil {
 		return err
@@ -84,14 +88,21 @@ func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
 }
 
 func (w *PaymentWorker) forwardPayment(instance *config.Service, payment *models.Payment, payload []byte) error {
+	w.redis.AddStat("forwardPayment")
 	status, err := w.client.Post(instance.URL+"/payments", payload, instance)
 	if err != nil || status < fasthttp.StatusOK || status >= fasthttp.StatusMultipleChoices {
 		if status == fasthttp.StatusUnprocessableEntity {
 			return nil
 		}
+		if status == 0 || status == fasthttp.StatusInternalServerError {
+			time.Sleep(time.Second)
+		}
 		return fmt.Errorf("invalid status code: %d", status)
 	}
-	w.redis.SavePayment(instance, payment)
+	if err := w.redis.SavePayment(instance, payment); err != nil {
+		return fmt.Errorf("failed to save payment: %w", err)
+	}
+	w.redis.AddStat("SavePayment")
 	return nil
 }
 
@@ -123,6 +134,10 @@ func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, er
 	wg.Wait()
 	log.Print("GetSummary:", time.Since(start))
 	log.Println("QueueLength:", w.queue.Length())
+	log.Println("PaymentsRequested:", w.redis.GetStat("EnqueuePayment"))
+	log.Println("PaymentsProcessed:", w.redis.GetStat("ProcessPayment"))
+	log.Println("PaymentsForwarded:", w.redis.GetStat("forwardPayment"))
+	log.Println("PaymentsSaved:", w.redis.GetStat("SavePayment"))
 	return &res, nil
 }
 
@@ -186,5 +201,9 @@ func (w *PaymentWorker) purgePaymentProcessor(instance *config.Service) error {
 	if _, _, err := fasthttp.Post(nil, instance.URL+"/admin/purge-payments", nil); err != nil {
 		return err
 	}
+	w.redis.ResetStat("EnqueuePayment")
+	w.redis.ResetStat("ProcessPayment")
+	w.redis.ResetStat("forwardPayment")
+	w.redis.ResetStat("SavePayment")
 	return nil
 }
