@@ -93,6 +93,10 @@ func (h *Health) selectActiveInstance() *config.Service {
 		return f
 	}
 
+	if dl-fl <= 1000 {
+		return d
+	}
+
 	if 3*dl <= fl {
 		return d
 	}
