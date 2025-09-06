@@ -9,10 +9,7 @@ import (
 	"rinha-2025-go/internal/database"
 	"rinha-2025-go/internal/handlers"
 	"rinha-2025-go/internal/services"
-	"runtime"
 
-	"github.com/labstack/echo-contrib/echoprometheus"
-	"github.com/labstack/echo-contrib/pprof"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -35,8 +32,6 @@ func NewListenSocket(socketPath string) net.Listener {
 }
 
 func main() {
-	runtime.GOMAXPROCS(1)
-
 	cfg := config.ConfigInstance().Init()
 
 	redis := database.NewRedisClient(cfg)
@@ -55,19 +50,20 @@ func main() {
 	}
 
 	e := echo.New()
-	pprof.Register(e)
+	// pprof.Register(e)
 
 	e.Use(middleware.Recover())
-	e.Use(echoprometheus.NewMiddleware("rinha"))
+	// e.Use(echoprometheus.NewMiddleware("rinha"))
 
 	e.POST("/payments", handlers.PostPayment(worker))
 	e.GET("/payments-summary", handlers.GetSummary(worker))
 	e.POST("/purge-payments", handlers.PostPurgePayments(worker))
-	e.GET("/metrics", echoprometheus.NewHandler())
+	// e.GET("/metrics", echoprometheus.NewHandler())
 
 	log.Println("Starting Echo server")
-	// log.Printf("Listening on %s", cfg.ServerSocket)
-	// listener := NewListenSocket(cfg.ServerSocket)
-	// e.Logger.Fatal(e.Server.Serve(listener))
-	e.Logger.Fatal(e.Start(":9999"))
+	log.Printf("Listening on %s", cfg.ServerSocket)
+	listener := NewListenSocket(cfg.ServerSocket)
+	defer listener.Close()
+	e.Logger.Fatal(e.Server.Serve(listener))
+	// e.Logger.Fatal(e.Start(":9999"))
 }

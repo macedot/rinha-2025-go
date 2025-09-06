@@ -30,7 +30,10 @@ services:
     <<: *api_template
     hostname: api01
     container_name: rinha-api01
+    ports:
+      - "9001:9999"
     environment:
+      GOMAXPROCS: 3
       NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.1
       REDIS_SOCKET: /sockets/redis.sock
@@ -40,7 +43,10 @@ services:
     <<: *api_template
     hostname: api02
     container_name: rinha-api02
+    ports:
+      - "9002:9999"
     environment:
+      GOMAXPROCS: 3
       NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.2
       REDIS_SOCKET: /sockets/redis.sock
@@ -50,7 +56,10 @@ services:
     <<: *api_template
     hostname: api03
     container_name: rinha-api03
+    ports:
+      - "9003:9999"
     environment:
+      GOMAXPROCS: 3
       NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.3
       REDIS_SOCKET: /sockets/redis.sock
@@ -60,7 +69,10 @@ services:
     <<: *api_template
     hostname: api04
     container_name: rinha-api04
+    ports:
+      - "9004:9999"
     environment:
+      GOMAXPROCS: 3
       NUM_WORKERS: 50
       SERVER_SOCKET: /sockets/go.sock.4
       REDIS_SOCKET: /sockets/redis.sock
