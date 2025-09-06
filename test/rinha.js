@@ -12,7 +12,7 @@ const initialToken = '123';
 export const token = __ENV.TOKEN ?? initialToken;
 
 const paymentProcessorDefaultHttp = new Httpx({
-  baseURL: 'http://10.4.2.250:8001',
+  baseURL: 'http://localhost:8001',
   headers: {
     'Content-Type': 'application/json',
     'X-Rinha-Token': token
@@ -21,7 +21,7 @@ const paymentProcessorDefaultHttp = new Httpx({
 });
 
 const paymentProcessorFallbacktHttp = new Httpx({
-  baseURL: 'http://10.4.2.250:8002',
+  baseURL: 'http://localhost:8002',
   headers: {
     'Content-Type': 'application/json',
     'X-Rinha-Token': token
@@ -30,8 +30,8 @@ const paymentProcessorFallbacktHttp = new Httpx({
 });
 
 const backendHttp = new Httpx({
-  baseURL: "http://10.4.2.250:9999",
-  //baseURL: "http://10.4.2.250:5123",
+  baseURL: "http://localhost:9999",
+  //baseURL: "http://localhost:5123",
   headers: {
     "Content-Type": "application/json",
   },

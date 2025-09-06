@@ -47,8 +47,7 @@ func (w *PaymentWorker) Close() {
 
 func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
 	w.redis.AddStat("EnqueuePayment")
-	payment.Timestamp = time.Now().UTC()
-	w.queue.Enqueue(payment)
+	go w.queue.Enqueue(payment)
 }
 func (w *PaymentWorker) ProcessQueue() {
 	for {
@@ -58,10 +57,9 @@ func (w *PaymentWorker) ProcessQueue() {
 			continue
 		}
 		if err := w.ProcessPayment(payment); err != nil {
-			//log.Println("ProcessPayment:", err)
 			w.queue.Enqueue(payment)
 		}
-		time.Sleep(time.Millisecond)
+		// time.Sleep(time.Millisecond)
 	}
 }
 
@@ -79,11 +77,25 @@ func (w *PaymentWorker) getCurrentInstance() *config.Service {
 
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
 	w.redis.AddStat("ProcessPayment")
-	payload, err := oj.Marshal(payment)
-	if err != nil {
-		return err
-	}
-	activeInstance := w.getCurrentInstance()
+
+	var wg sync.WaitGroup
+
+	var activeInstance *config.Service
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		activeInstance = w.getCurrentInstance()
+	}()
+
+	var payload []byte
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		payment.Timestamp = time.Now().UTC()
+		payload, _ = oj.Marshal(payment)
+	}()
+
+	wg.Wait()
 	return w.forwardPayment(activeInstance, payment, payload)
 }
 

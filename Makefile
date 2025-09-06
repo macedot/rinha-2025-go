@@ -4,6 +4,7 @@
 APP_NAME := rinha-2025-go
 APP_PORT = 9999
 CLIENT_COMPOSE_FILE = ./test/payment-processor/docker-compose.yml
+ARM_CLIENT_COMPOSE_FILE = ./test/payment-processor/docker-compose-arm64.yml
 COMPOSE_FILE = ./build/docker-compose.yml
 CURL = curl -s -w "\nHTTP Status: %{http_code}\n"
 DOCKER_USER := macedot
@@ -12,7 +13,7 @@ VERSION := $(shell git rev-parse --short HEAD)
 
 # Default target
 .PHONY: all
-all: build up logs
+all: down build up logs
 
 # Build the Docker images
 .PHONY: build
@@ -95,6 +96,11 @@ test: test-stats test-stats-no-params test-purge test-metrics
 client:
 	@echo "Starting CLIENT services..."
 	docker-compose -f $(CLIENT_COMPOSE_FILE) up -d
+
+.PHONY: client-arm
+client-arm:
+	@echo "Starting ARM  services..."
+	docker-compose -f $(ARM_CLIENT_COMPOSE_FILE) up -d
 
 k6:
 	K6_WEB_DASHBOARD_OPEN=false \
