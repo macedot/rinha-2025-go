@@ -1,13 +1,12 @@
-package services
+package consumer
 
 import (
 	"fmt"
 	"log"
-	"math/rand"
-	"os"
 	"rinha-2025-go/internal/config"
 	"rinha-2025-go/internal/database"
 	"rinha-2025-go/internal/models"
+	"rinha-2025-go/internal/services"
 	"sync"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 
 const (
 	HEALTH_REDIS_KEY       = "health"
-	HEALTH_REDIS_LOCK      = "health_lock"
 	HEALTH_REDIS_LOCK_TIME = "health_lock_time"
 	HEALTH_REDIS_INSTANCES = "instances"
 )
@@ -25,14 +23,14 @@ const (
 type Health struct {
 	cfg      *config.Config
 	redis    *database.Redis
-	client   *HttpClient
+	client   *services.HttpClient
 	services *config.Services
 }
 
 func NewHealth(
 	config *config.Config,
 	redis *database.Redis,
-	client *HttpClient,
+	client *services.HttpClient,
 ) *Health {
 	services := config.GetServices()
 	return &Health{
@@ -143,34 +141,12 @@ func (h *Health) getServiceHealth(service *config.Service) *models.HealthRespons
 			log.Print("getServiceHealth:Unmarshal:", service.URL, err)
 		}
 	}
-	// log.Println("getServiceHealth:", service.Table, ":", health)
 	return &health
 }
 
 func (h *Health) ProcessServicesHealth() {
-	lockValue, _ := os.Hostname()
-	lockTTL := time.Second + h.cfg.ServiceRefreshInterval
-	sleep := time.Duration(rand.Intn(3000))
-	log.Printf("Sleep for %d ms...", sleep)
-	time.Sleep(sleep * time.Millisecond)
 	for {
-		waitTime := h.cfg.ServiceRefreshInterval
-		if !h.redis.TryLock(HEALTH_REDIS_LOCK, lockValue, lockTTL) {
-			time.Sleep(time.Second)
-			continue
-		}
-		lastRun, err := h.redis.GetLastRunTime(HEALTH_REDIS_LOCK_TIME)
-		if err == nil {
-			waitTime = h.cfg.ServiceRefreshInterval - time.Since(lastRun)
-			if waitTime < 0 {
-				h.refreshServiceStatus()
-				h.redis.SetLastRunTime(HEALTH_REDIS_LOCK_TIME, time.Now())
-				waitTime = h.cfg.ServiceRefreshInterval
-			}
-		} else {
-			log.Println("ProcessServicesHealth:GetLastRunTime:", err)
-		}
-		h.redis.Unlock(HEALTH_REDIS_LOCK)
-		time.Sleep(waitTime)
+		h.refreshServiceStatus()
+		time.Sleep(h.cfg.ServiceRefreshInterval + time.Millisecond)
 	}
 }

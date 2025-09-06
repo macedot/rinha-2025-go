@@ -20,11 +20,11 @@ type Redis struct {
 	Rdb *redis.Client
 }
 
-func NewRedisClient(cfg *config.Config) *Redis {
+func NewRedisClient(redisSocket string) *Redis {
 	return &Redis{
 		ctx: context.Background(),
 		Rdb: redis.NewClient(&redis.Options{
-			Addr: cfg.RedisSocket,
+			Addr: redisSocket,
 		}),
 	}
 }

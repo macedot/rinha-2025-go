@@ -1,8 +1,0 @@
-global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
-
-scrape_configs:
-  - job_name: "rinha"
-    static_configs:
-      - targets: ["api01:9999", "api02:9999", "api03:9999", "api04:9999"]

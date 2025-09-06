@@ -1,4 +1,4 @@
-package http
+package client
 
 import (
 	"time"
@@ -6,7 +6,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func NewFastHttpClient() *fasthttp.Client {
+func NewHttpClient() *fasthttp.Client {
 	return &fasthttp.Client{
 		ReadBufferSize:                8192,
 		WriteBufferSize:               8192,

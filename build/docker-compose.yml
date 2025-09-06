@@ -22,14 +22,26 @@ x-api_template:
   deploy:
     resources:
       limits:
-        cpus: "0.25"
+        cpus: "0.10"
         memory: "50MB"
 
 services:
+  worker:
+    <<: *api_template
+    hostname: worker
+    container_name: rinha-worker
+    command: /worker
+    deploy:
+      resources:
+        limits:
+          cpus: "0.80"
+          memory: "100MB"
+
   api01:
     <<: *api_template
     hostname: api01
     container_name: rinha-api01
+    command: /api
     environment:
       SERVER_SOCKET: /sockets/go.sock.1
 
@@ -37,22 +49,9 @@ services:
     <<: *api_template
     hostname: api02
     container_name: rinha-api02
+    command: /api
     environment:
       SERVER_SOCKET: /sockets/go.sock.2
-
-  api03:
-    <<: *api_template
-    hostname: api03
-    container_name: rinha-api03
-    environment:
-      SERVER_SOCKET: /sockets/go.sock.3
-
-  api04:
-    <<: *api_template
-    hostname: api04
-    container_name: rinha-api04
-    environment:
-      SERVER_SOCKET: /sockets/go.sock.4
 
   haproxy:
     image: haproxy:latest
@@ -64,8 +63,6 @@ services:
     depends_on:
       - api01
       - api02
-      - api03
-      - api04
     networks:
       - backend
     ports:
@@ -100,18 +97,6 @@ services:
         limits:
           cpus: "0.30"
           memory: "100MB"
-
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   hostname: prometheus
-  #   container_name: rinha-prometheus
-  #   volumes:
-  #     - ../config/prometheus.yml:/etc/prometheus/prometheus.yml
-  #     - prometheus:/prometheus
-  #   ports:
-  #     - "9090:9090"
-  #   networks:
-  #     - backend
 
 volumes:
   prometheus:

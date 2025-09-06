@@ -74,7 +74,7 @@ func (c *Config) Init() *Config {
 	c.ServiceRefreshInterval = 5 * time.Second
 	c.ActiveInstance = &c.Services.Default
 	c.RedisSocket = "/sockets/redis.sock"
-	c.ServerSocket = utils.GetEnv("SERVER_SOCKET")
+	c.ServerSocket = utils.GetEnvOr("SERVER_SOCKET", "")
 
 	workers, err := strconv.Atoi(utils.GetEnvOr("NUM_WORKERS", "50"))
 	if err != nil {

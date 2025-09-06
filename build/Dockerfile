@@ -5,9 +5,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ENV CGO_ENABLED=0
-RUN go build -ldflags="-s -w" -o app ./cmd/rinha/
+RUN go build -ldflags="-s -w" -o api ./cmd/api/
+RUN go build -ldflags="-s -w" -o worker ./cmd/worker/
 
 FROM scratch
-COPY --from=builder ["/build/app", "/"]
-EXPOSE 9999 8888 7777
-ENTRYPOINT ["/app"]
+COPY --from=builder ["/build/api", "/"]
+COPY --from=builder ["/build/worker", "/"]
