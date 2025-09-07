@@ -24,7 +24,7 @@ docker compose up -d --build
 
 ## Execucao Local (Rinha Final)
 
-### AMD Ryzen 9 5900X @ 3.70 GHz
+### AMD Ryzen 9 5900X (24) @ 3.70 GHz
 
 ```json
 {
@@ -34,6 +34,20 @@ docker compose up -d --build
   "p99": {
     "valor": "0.45ms",
     "bonus": "21%",
+  }
+}
+```
+
+### Apple M1 (8) @ 3.20 GHz
+
+```json
+{
+  "total_liquido": 1652712.678,
+  "total_bruto": 1801773.2,
+  "total_taxas": 149060.522,
+  "p99": {
+    "valor": "86.35ms",
+    "bonus": "0%",
   }
 }
 ```
