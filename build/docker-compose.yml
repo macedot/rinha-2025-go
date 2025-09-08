@@ -101,18 +101,6 @@ services:
           cpus: "0.30"
           memory: "100MB"
 
-  # prometheus:
-  #   image: prom/prometheus:latest
-  #   hostname: prometheus
-  #   container_name: rinha-prometheus
-  #   volumes:
-  #     - ../config/prometheus.yml:/etc/prometheus/prometheus.yml
-  #     - prometheus:/prometheus
-  #   ports:
-  #     - "9090:9090"
-  #   networks:
-  #     - backend
-
 volumes:
   prometheus:
   sockets:

@@ -86,6 +86,11 @@ func RunServer(cfg *config.Config, worker *services.PaymentWorker) error {
 			ctx.Error("Not Found", fasthttp.StatusNotFound)
 		}
 	})
+
+	if cfg.ServerSocket == "" {
+		return fasthttp.ListenAndServe(":9999", handlers)
+	}
+
 	defer os.Remove(cfg.ServerSocket)
 	return fasthttp.ListenAndServeUNIX(cfg.ServerSocket, 0666, handlers)
 }

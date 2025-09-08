@@ -46,7 +46,6 @@ func (w *PaymentWorker) Close() {
 }
 
 func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
-	// w.redis.AddStat("EnqueuePayment")
 	go w.queue.Enqueue(payment)
 }
 
@@ -73,7 +72,6 @@ func (w *PaymentWorker) getCurrentInstance() *config.Service {
 }
 
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
-	// w.redis.AddStat("ProcessPayment")
 	var wg sync.WaitGroup
 	var activeInstance *config.Service
 	wg.Add(1)
@@ -93,7 +91,6 @@ func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
 }
 
 func (w *PaymentWorker) forwardPayment(instance *config.Service, payment *models.Payment, payload []byte) error {
-	// w.redis.AddStat("forwardPayment")
 	status, err := w.client.Post(instance.URL+"/payments", payload, instance)
 	if err != nil || status < fasthttp.StatusOK || status >= fasthttp.StatusMultipleChoices {
 		if status == fasthttp.StatusUnprocessableEntity {
@@ -107,7 +104,6 @@ func (w *PaymentWorker) forwardPayment(instance *config.Service, payment *models
 	if err := w.redis.SavePayment(instance, payment); err != nil {
 		return fmt.Errorf("failed to save payment: %w", err)
 	}
-	// w.redis.AddStat("SavePayment")
 	return nil
 }
 
@@ -133,10 +129,6 @@ func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, er
 	wg.Wait()
 	log.Print("GetSummary:", time.Since(start))
 	log.Println("QueueLength:", w.queue.Length())
-	// log.Println("PaymentsRequested:", w.redis.GetStat("EnqueuePayment"))
-	// log.Println("PaymentsProcessed:", w.redis.GetStat("ProcessPayment"))
-	// log.Println("PaymentsForwarded:", w.redis.GetStat("forwardPayment"))
-	// log.Println("PaymentsSaved:", w.redis.GetStat("SavePayment"))
 	return &res, nil
 }
 
@@ -181,10 +173,6 @@ func (w *PaymentWorker) PurgePayments() error {
 	go func() {
 		defer wg.Done()
 		w.redis.FlushAll()
-		// w.redis.ResetStat("EnqueuePayment")
-		// w.redis.ResetStat("ProcessPayment")
-		// w.redis.ResetStat("forwardPayment")
-		// w.redis.ResetStat("SavePayment")
 	}()
 	wg.Wait()
 	log.Print("PurgePayments:", time.Since(start))
@@ -198,38 +186,3 @@ func (w *PaymentWorker) purgePaymentProcessor(instance *config.Service) error {
 	}
 	return nil
 }
-
-// func (w *PaymentWorker) UpdateServicesFee() error {
-// 	var wg sync.WaitGroup
-// 	start := time.Now()
-// 	services := w.config.GetServices()
-// 	wg.Add(1)
-// 	go func() {
-// 		defer wg.Done()
-// 		summary := w.updateServiceFee(&services.Default)
-// 		services.Default.Fee = summary.FeePerTransaction
-// 	}()
-// 	wg.Add(1)
-// 	go func() {
-// 		defer wg.Done()
-// 		summary := w.updateServiceFee(&services.Fallback)
-// 		services.Fallback.Fee = summary.FeePerTransaction
-// 	}()
-// 	wg.Wait()
-// 	log.Print("UpdateServicesFee:", time.Since(start))
-// 	return nil
-// }
-
-// func (w *PaymentWorker) updateServiceFee(instance *config.Service) *models.PaymentSummary {
-// 	var summary models.PaymentSummary
-// 	statusCode, body, err := w.client.Get(instance.URL+"/admin/payments-summary", instance)
-// 	if err != nil || statusCode != fasthttp.StatusOK {
-// 		log.Print("updateServiceFee:Get:", instance.Table, ":", statusCode, "|", err)
-// 		return &summary
-// 	}
-// 	if err := oj.Unmarshal(body, &summary); err != nil {
-// 		log.Print("updateServiceFee:Unmarshal:", instance.Table, ":", err)
-// 		return &summary
-// 	}
-// 	return &summary
-// }

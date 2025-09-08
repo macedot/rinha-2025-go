@@ -72,22 +72,18 @@ func (h *Health) setActiveInstance(activeService *config.Service) error {
 func (h *Health) selectActiveInstance() *config.Service {
 	d := &h.services.Default
 	f := &h.services.Fallback
-
 	if d.Failing {
 		if f.Failing {
 			return nil
 		}
 		return f
 	}
-
 	if d.MinResponseTime <= 150 || f.Failing || d.MinResponseTime == f.MinResponseTime {
 		return d
 	}
-
 	if f.MinResponseTime <= 150 {
 		return f
 	}
-
 	return d
 }
 
@@ -143,7 +139,6 @@ func (h *Health) getServiceHealth(service *config.Service) *models.HealthRespons
 			log.Print("getServiceHealth:Unmarshal:", service.URL, err)
 		}
 	}
-	// log.Println("getServiceHealth:", service.Table, ":", health)
 	return &health
 }
 
