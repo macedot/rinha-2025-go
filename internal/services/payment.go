@@ -51,7 +51,7 @@ func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
 	select {
 	case w.paymentChan <- payment:
 	default:
-		go w.queue.Enqueue(payment)
+		w.queue.Enqueue(payment)
 	}
 }
 
@@ -73,21 +73,9 @@ func (w *PaymentWorker) getCurrentInstance() *config.Service {
 }
 
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
-	var wg sync.WaitGroup
-	var activeInstance *config.Service
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		activeInstance = w.getCurrentInstance()
-	}()
-	var payload []byte
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		payment.Timestamp = time.Now().UTC()
-		payload, _ = oj.Marshal(payment)
-	}()
-	wg.Wait()
+	activeInstance := w.getCurrentInstance()
+	payment.Timestamp = time.Now().UTC()
+	payload, _ := oj.Marshal(payment)
 	return w.forwardPayment(activeInstance, payment, payload)
 }
 
