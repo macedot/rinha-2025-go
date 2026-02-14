@@ -23,8 +23,11 @@ type Redis struct {
 func NewRedisClient(cfg *config.Config) *Redis {
 	ctx := context.Background()
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisSocket,
-		PoolSize: 200,
+		Addr:         cfg.RedisSocket,
+		PoolSize:     200,
+		ReadTimeout:  cfg.RedisReadTimeout,
+		WriteTimeout: cfg.RedisWriteTimeout,
+		PoolTimeout:  cfg.RedisPoolTimeout,
 	})
 	if _, err := rdb.Ping(ctx).Result(); err != nil {
 		log.Fatalf("failed to connect to redis: %v", err)

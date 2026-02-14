@@ -3,6 +3,7 @@ package utils
 import (
 	"log"
 	"os"
+	"time"
 )
 
 func GetEnv(key string) string {
@@ -18,4 +19,17 @@ func GetEnvOr(key string, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func GetEnvDurationOr(key string, defaultValue time.Duration) time.Duration {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	duration, err := time.ParseDuration(valueStr)
+	if err != nil {
+		log.Printf("warning: invalid duration for %s: %s, using default", key, valueStr)
+		return defaultValue
+	}
+	return duration
 }

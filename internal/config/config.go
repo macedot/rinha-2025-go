@@ -32,6 +32,9 @@ type Services struct {
 type Config struct {
 	ServerSocket           string
 	RedisSocket            string
+	RedisReadTimeout       time.Duration
+	RedisWriteTimeout      time.Duration
+	RedisPoolTimeout       time.Duration
 	ActiveInstance         *Service
 	Services               Services
 	ServiceRefreshInterval time.Duration
@@ -77,6 +80,9 @@ func (c *Config) Init() *Config {
 	c.ServiceRefreshInterval = 5 * time.Second
 	c.ActiveInstance = &c.Services.Default
 	c.RedisSocket = utils.GetEnvOr("REDIS_SOCKET", "/sockets/redis.sock")
+	c.RedisReadTimeout = utils.GetEnvDurationOr("REDIS_READ_TIMEOUT", 5*time.Second)
+	c.RedisWriteTimeout = utils.GetEnvDurationOr("REDIS_WRITE_TIMEOUT", 5*time.Second)
+	c.RedisPoolTimeout = utils.GetEnvDurationOr("REDIS_POOL_TIMEOUT", 10*time.Second)
 	c.ServerSocket = utils.GetEnvOr("SERVER_SOCKET", "")
 
 	workers, err := strconv.Atoi(utils.GetEnvOr("NUM_WORKERS", "50"))
