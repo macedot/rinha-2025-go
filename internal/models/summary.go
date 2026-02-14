@@ -13,7 +13,7 @@ type SummaryParam struct {
 type PaymentSummary struct {
 	RequestCount      int     `json:"totalRequests"`
 	TotalAmount       float64 `json:"totalAmount"`
-	TtotalFee         float64 `json:"totalFee"`
+	TotalFee          float64 `json:"totalFee"`
 	FeePerTransaction float64 `json:"feePerTransaction"`
 }
 

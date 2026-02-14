@@ -8,17 +8,17 @@ import (
 
 func NewFastHttpClient() *fasthttp.Client {
 	return &fasthttp.Client{
-		ReadBufferSize:                8192,
-		WriteBufferSize:               8192,
-		MaxConnsPerHost:               4096,
+		ReadBufferSize:                2048, // 2KB - sufficient for payment payloads (~500 bytes)
+		WriteBufferSize:               2048, // 2KB - reduces memory vs 8KB default
+		MaxConnsPerHost:               512,  // Right-sized for 4 API instances (128 each)
 		ReadTimeout:                   5 * time.Second,
 		WriteTimeout:                  5 * time.Second,
 		MaxIdleConnDuration:           10 * time.Second,
 		NoDefaultUserAgentHeader:      true, // Don't send: User-Agent: fasthttp
-		DisableHeaderNamesNormalizing: true, // If you set the case on your headers correctly you can enable this
+		DisableHeaderNamesNormalizing: true, // Headers set correctly, skip normalization
 		DisablePathNormalizing:        true,
 		Dial: (&fasthttp.TCPDialer{
-			Concurrency:      4096,
+			Concurrency:      512, // Match MaxConnsPerHost
 			DNSCacheDuration: time.Hour,
 		}).Dial,
 	}
