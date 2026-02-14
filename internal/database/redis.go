@@ -41,13 +41,11 @@ func (r *Redis) Close() {
 
 func (r *Redis) SavePayment(instance *config.Service, payment *models.Payment) error {
 	ts := float64(payment.Timestamp.UnixNano()) / 1e9
-	if err := r.Rdb.HSet(r.ctx, instance.KeyAmount, payment.PaymentID, payment.Amount).Err(); err != nil {
-		return err
-	}
-	if err := r.Rdb.ZAdd(r.ctx, instance.KeyTime, redis.Z{Score: ts, Member: payment.PaymentID}).Err(); err != nil {
-		return err
-	}
-	return nil
+	pipe := r.Rdb.Pipeline()
+	pipe.HSet(r.ctx, instance.KeyAmount, payment.PaymentID, payment.Amount)
+	pipe.ZAdd(r.ctx, instance.KeyTime, redis.Z{Score: ts, Member: payment.PaymentID})
+	_, err := pipe.Exec(r.ctx)
+	return err
 }
 
 func (r *Redis) RemovePayment(instance *config.Service, payment *models.Payment) error {
