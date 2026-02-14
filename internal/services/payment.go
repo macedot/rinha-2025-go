@@ -15,6 +15,14 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// bufferPool for JSON marshaling to reduce GC pressure
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, 0, 1024)
+		return &b
+	},
+}
+
 type PaymentWorker struct {
 	ctx         context.Context
 	config      *config.Config
@@ -75,7 +83,16 @@ func (w *PaymentWorker) getCurrentInstance() *config.Service {
 func (w *PaymentWorker) ProcessPayment(payment *models.Payment) error {
 	activeInstance := w.getCurrentInstance()
 	payment.Timestamp = time.Now().UTC()
-	payload, _ := oj.Marshal(payment)
+
+	// Get buffer from pool for JSON marshaling
+	bufPtr := bufferPool.Get().(*[]byte)
+	defer bufferPool.Put(bufPtr)
+
+	payload, err := oj.Marshal(payment, *bufPtr)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payment: %w", err)
+	}
+
 	return w.forwardPayment(activeInstance, payment, payload)
 }
 
