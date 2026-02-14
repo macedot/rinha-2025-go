@@ -34,7 +34,7 @@ func NewPaymentWorker(
 	return &PaymentWorker{
 		ctx:    ctx,
 		config: cfg,
-		queue:  NewPaymentQueue(ctx, cfg.RedisSocket),
+		queue:  NewPaymentQueue(ctx, redis),
 		client: client,
 		redis:  redis,
 		health: health,

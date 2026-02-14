@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"rinha-2025-go/internal/database"
 	"rinha-2025-go/internal/models"
 	"time"
 
@@ -17,20 +18,11 @@ type PaymentQueue struct {
 	client *redis.Client
 }
 
-func NewPaymentQueue(ctx context.Context, redisSocket string) *PaymentQueue {
-	client := redis.NewClient(&redis.Options{
-		Addr:     redisSocket,
-		PoolSize: 200,
-	})
-	_, err := client.Ping(context.Background()).Result()
-	if err != nil {
-		log.Printf("failed to connect to redis: %s", err.Error())
-		return nil
-	}
+func NewPaymentQueue(ctx context.Context, redis *database.Redis) *PaymentQueue {
 	return &PaymentQueue{
 		ctx:    ctx,
 		key:    "payment-queue",
-		client: client,
+		client: redis.Rdb,
 	}
 }
 
@@ -73,5 +65,6 @@ func (q *PaymentQueue) Length() int64 {
 }
 
 func (q *PaymentQueue) Close() error {
-	return q.client.Close()
+	// Client is shared from database package, not closed here
+	return nil
 }
