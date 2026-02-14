@@ -17,8 +17,10 @@ import (
 
 func PostPayment(worker *services.PaymentWorker) func(c *fasthttp.RequestCtx) {
 	return func(c *fasthttp.RequestCtx) {
+		body := make([]byte, len(c.PostBody()))
+		copy(body, c.PostBody())
 		var payment models.Payment
-		if err := oj.Unmarshal(c.PostBody(), &payment); err != nil {
+		if err := oj.Unmarshal(body, &payment); err != nil {
 			c.Error(err.Error(), fasthttp.StatusBadRequest)
 			return
 		}
