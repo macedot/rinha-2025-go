@@ -16,12 +16,13 @@ import (
 )
 
 type PaymentWorker struct {
-	ctx    context.Context
-	config *config.Config
-	queue  *PaymentQueue
-	client *HttpClient
-	redis  *database.Redis
-	health *Health
+	ctx         context.Context
+	config      *config.Config
+	queue       *PaymentQueue
+	client      *HttpClient
+	redis       *database.Redis
+	health      *Health
+	paymentChan chan *models.Payment
 }
 
 func NewPaymentWorker(
@@ -32,12 +33,13 @@ func NewPaymentWorker(
 ) *PaymentWorker {
 	ctx := context.Background()
 	return &PaymentWorker{
-		ctx:    ctx,
-		config: cfg,
-		queue:  NewPaymentQueue(ctx, redis),
-		client: client,
-		redis:  redis,
-		health: health,
+		ctx:         ctx,
+		config:      cfg,
+		queue:       NewPaymentQueue(ctx, redis),
+		client:      client,
+		redis:       redis,
+		health:      health,
+		paymentChan: make(chan *models.Payment, 1000),
 	}
 }
 
@@ -46,16 +48,15 @@ func (w *PaymentWorker) Close() {
 }
 
 func (w *PaymentWorker) EnqueuePayment(payment *models.Payment) {
-	go w.queue.Enqueue(payment)
+	select {
+	case w.paymentChan <- payment:
+	default:
+		go w.queue.Enqueue(payment)
+	}
 }
 
 func (w *PaymentWorker) ProcessQueue() {
-	for {
-		payment := w.queue.Dequeue()
-		if payment == nil {
-			time.Sleep(time.Second)
-			continue
-		}
+	for payment := range w.paymentChan {
 		if err := w.ProcessPayment(payment); err != nil {
 			w.queue.Enqueue(payment)
 		}
