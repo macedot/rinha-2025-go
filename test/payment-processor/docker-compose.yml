@@ -1,6 +1,9 @@
 x-service-templates:
   payment-processor: &payment-processor
-    image: zanfranceschi/payment-processor:amd64-20250807222453
+    user: "0"
+    security_opt:
+      - label=disable
+    image: docker.io/zanfranceschi/payment-processor:amd64-20250807222453
     networks:
       - payment-processor
       - payment-processor-db
@@ -16,7 +19,9 @@ x-service-templates:
           memory: "100MB"
 
   payment-processor-db: &payment-processor-db
-    image: postgres:17-alpine
+    security_opt:
+      - label=disable
+    image: docker.io/library/postgres:17-alpine
     command: postgres -c checkpoint_timeout=600 -c max_wal_size=4096 -c synchronous_commit=0 -c fsync=0 -c full_page_writes=0
     networks:
       - payment-processor-db
@@ -50,15 +55,21 @@ services:
     volumes:
       - postgres-socket-01:/var/run/postgresql
     depends_on:
-      - payment-processor-db-1
+      payment-processor-db-1:
+        condition: service_healthy
 
   payment-processor-db-1:
     <<: *payment-processor-db
     container_name: payment-processor-default-db
     hostname: payment-processor-default-db
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - postgres-socket-01:/var/run/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rinha"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   payment-processor-2:
     <<: *payment-processor
@@ -74,15 +85,21 @@ services:
     volumes:
       - postgres-socket-02:/var/run/postgresql
     depends_on:
-      - payment-processor-db-2
+      payment-processor-db-2:
+        condition: service_healthy
 
   payment-processor-db-2:
     <<: *payment-processor-db
     container_name: payment-processor-fallback-db
     hostname: payment-processor-fallback-db
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - postgres-socket-02:/var/run/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rinha"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   payment-processor:
@@ -93,4 +110,14 @@ networks:
 
 volumes:
   postgres-socket-01:
+    # driver: local
+    # driver_opts:
+    #   type: tmpfs
+    #   device: tmpfs
+    #   o: size=16m,mode=1777,uid=999,gid=999
   postgres-socket-02:
+    # driver: local
+    # driver_opts:
+    #   type: tmpfs
+    #   device: tmpfs
+    #   o: size=16m,mode=1777,uid=999,gid=999

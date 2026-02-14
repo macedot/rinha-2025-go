@@ -5,11 +5,21 @@ services:
     image: redis:8-alpine
     hostname: redis
     container_name: rinha-redis
-    command: [ "redis-server", "--appendonly", "yes", "--appendfsync", "everysec" ]
+    user: "0"
+    security_opt:
+      - label=disable
+    command: >
+      redis-server
+      --unixsocket /sockets/redis.sock
+      --unixsocketperm 777
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - sockets:/sockets:rw
     ports:
       - "6379:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-s", "/sockets/redis.sock", "ping" ]
       start_period: 1s
       interval: 10s
       timeout: 5s
@@ -19,3 +29,11 @@ services:
         limits:
           cpus: "0.30"
           memory: "100MB"
+
+volumes:
+  sockets:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=16m,mode=1777
