@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
 	"rinha-2025-go/internal/database"
 	"rinha-2025-go/internal/models"
 	"time"
@@ -48,13 +47,11 @@ func (q *PaymentQueue) Dequeue() *models.Payment {
 		return nil
 	}
 	if err != nil {
-		log.Printf("failed to pop from queue: %s", err.Error())
 		return nil
 	}
 	var payment models.Payment
 	err = oj.Unmarshal([]byte(result[1]), &payment)
 	if err != nil {
-		log.Printf("failed to unmarshal message: %s", err.Error())
 		return nil
 	}
 	return &payment
