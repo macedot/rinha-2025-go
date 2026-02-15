@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"rinha-2025-go/internal/config"
 	"rinha-2025-go/internal/database"
@@ -145,15 +144,21 @@ func (h *Health) getServiceHealth(service *config.Service) *models.HealthRespons
 func (h *Health) ProcessServicesHealth() {
 	lockValue, _ := os.Hostname()
 	lockTTL := time.Second + h.cfg.ServiceRefreshInterval
-	sleep := time.Duration(rand.Intn(3000))
-	log.Printf("Sleep for %d ms...", sleep)
-	time.Sleep(sleep * time.Millisecond)
+
+	time.Sleep(100 * time.Millisecond)
+
+	backoff := time.Second
 	for {
 		waitTime := h.cfg.ServiceRefreshInterval
 		if !h.redis.TryLock(HEALTH_REDIS_LOCK, lockValue, lockTTL) {
-			time.Sleep(time.Second)
+			time.Sleep(backoff)
+			if backoff < 30*time.Second {
+				backoff *= 2
+			}
 			continue
 		}
+		backoff = time.Second
+
 		lastRun, err := h.redis.GetLastRunTime(HEALTH_REDIS_LOCK_TIME)
 		if err == nil {
 			waitTime = h.cfg.ServiceRefreshInterval - time.Since(lastRun)
