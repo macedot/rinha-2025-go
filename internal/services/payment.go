@@ -122,7 +122,6 @@ func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, er
 	var res models.SummaryResponse
 	var wg sync.WaitGroup
 	wg.Add(1)
-	start := time.Now()
 	go func() {
 		defer wg.Done()
 		res.Default = w.redis.GetSummary(&services.Default, param)
@@ -133,8 +132,6 @@ func (w *PaymentWorker) GetSummary(from, to string) (*models.SummaryResponse, er
 		res.Fallback = w.redis.GetSummary(&services.Fallback, param)
 	}()
 	wg.Wait()
-	log.Print("GetSummary:", time.Since(start))
-	log.Println("QueueLength:", w.queue.Length())
 	return &res, nil
 }
 
