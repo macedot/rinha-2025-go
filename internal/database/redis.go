@@ -56,26 +56,34 @@ func (r *Redis) RemovePayment(instance *config.Service, payment *models.Payment)
 }
 
 func (r *Redis) GetSummary(instance *config.Service, summary *models.SummaryParam) *models.ProcessorSummary {
-	var res models.ProcessorSummary
+	res := &models.ProcessorSummary{}
 	ids, err := r.Rdb.ZRangeByScore(r.ctx, instance.KeyTime,
 		&redis.ZRangeBy{Min: summary.StartTime, Max: summary.EndTime}).Result()
-	if err != nil {
-		log.Println("GetSummary:ZRangeByScore:", instance.Table, ":", err)
-		return &res
-	}
-	if len(ids) > 0 {
-		amounts, err := r.Rdb.HMGet(r.ctx, instance.KeyAmount, ids...).Result()
+	if err != nil || len(ids) == 0 {
 		if err != nil {
-			log.Println("GetSummary:HMGet:", instance.Table, ":", err)
-			return &res
+			log.Println("GetSummary:ZRangeByScore:", instance.Table, ":", err)
 		}
-		res.RequestCount = len(amounts)
-		for _, val := range amounts {
-			i, _ := strconv.ParseFloat(val.(string), 32)
-			res.TotalAmount += i
+		return res
+	}
+
+	res.RequestCount = len(ids)
+	amounts, err := r.Rdb.HMGet(r.ctx, instance.KeyAmount, ids...).Result()
+	if err != nil {
+		log.Println("GetSummary:HMGet:", instance.Table, ":", err)
+		return res
+	}
+
+	for _, val := range amounts {
+		if val == nil {
+			continue
+		}
+		if s, ok := val.(string); ok {
+			if i, err := strconv.ParseFloat(s, 64); err == nil {
+				res.TotalAmount += i
+			}
 		}
 	}
-	return &res
+	return res
 }
 
 func (r *Redis) FlushAll() error {
