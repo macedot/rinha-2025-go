@@ -27,8 +27,8 @@ func NewPaymentQueue(ctx context.Context, redis *database.Redis) *PaymentQueue {
 
 func (q *PaymentQueue) Enqueue(payment *models.Payment) error {
 	// Get buffer from pool for JSON marshaling
-	bufPtr := bufferPool.Get().(*[]byte)
-	defer bufferPool.Put(bufPtr)
+	bufPtr := BufferPool.Get().(*[]byte)
+	defer BufferPool.Put(bufPtr)
 
 	data, err := oj.Marshal(payment, *bufPtr)
 	if err != nil {

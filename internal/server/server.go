@@ -38,7 +38,9 @@ func GetSummary(worker *services.PaymentWorker) func(c *fasthttp.RequestCtx) {
 			c.Error(err.Error(), fasthttp.StatusInternalServerError)
 			return
 		}
-		body, err := oj.Marshal(summary)
+		bufPtr := services.BufferPool.Get().(*[]byte)
+		defer services.BufferPool.Put(bufPtr)
+		body, err := oj.Marshal(summary, *bufPtr)
 		if err != nil {
 			c.Error(err.Error(), fasthttp.StatusInternalServerError)
 			return
